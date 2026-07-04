@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { AppSettings, ThemeSetting } from '@shared/types'
 import BackendProfilesSection from '../components/settings/BackendProfilesSection'
 import HooksSection from '../components/settings/HooksSection'
+import LauncherSection from '../components/settings/LauncherSection'
 
 const THEME_OPTIONS: { value: ThemeSetting; label: string }[] = [
   { value: 'dark', label: '暗色' },
@@ -94,6 +95,7 @@ function SettingsPage(): React.JSX.Element {
           </label>
         </section>
 
+        <LauncherSection />
         <HooksSection />
         <BackendProfilesSection />
       </div>
