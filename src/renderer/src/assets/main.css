@@ -110,6 +110,33 @@ pre {
   border-top: 1px solid var(--border);
 }
 
+/* ---------- 终端状态点动画（working 脉动 / waiting 闪烁） ---------- */
+@keyframes t1-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.t1-pulse {
+  animation: t1-pulse 1.6s ease-in-out infinite;
+}
+@keyframes t1-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+.t1-blink {
+  animation: t1-blink 0.9s step-start infinite;
+}
+
 /* ---------- shiki 双主题（跟随 prefers-color-scheme） ---------- */
 .shiki-wrap .shiki {
   padding: 12px;

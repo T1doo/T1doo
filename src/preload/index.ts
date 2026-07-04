@@ -1,9 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import { IPC, IPC_EVENTS } from '../shared/ipc'
-import type { T1dooApi } from '../shared/api'
+import { IPC, IPC_EVENTS, IPC_SEND } from '../shared/ipc'
+import type { NavigateRequest, T1dooApi } from '../shared/api'
 import type { AppSettings } from '../shared/types'
 import type { SyncProgress } from '../shared/sessions'
+import type { ClaudeStatusEvent, TerminalInfo } from '../shared/terminals'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_event: IpcRendererEvent, payload: T): void => cb(payload)
@@ -29,10 +30,41 @@ const api: T1dooApi = {
     get: (id) => ipcRenderer.invoke(IPC.SessionsGet, id),
     search: (q, projectId) => ipcRenderer.invoke(IPC.SessionsSearch, q, projectId),
     export: (id, fmt) => ipcRenderer.invoke(IPC.SessionsExport, id, fmt),
-    resume: (id) => ipcRenderer.invoke(IPC.SessionsResume, id),
+    resume: (id, backendProfileId) => ipcRenderer.invoke(IPC.SessionsResume, id, backendProfileId),
+    resumeExternal: (id) => ipcRenderer.invoke(IPC.SessionsResumeExternal, id),
     update: (id, patch) => ipcRenderer.invoke(IPC.SessionsUpdate, id, patch),
     onUpdated: (cb) => subscribe<string[]>(IPC_EVENTS.SessionsUpdated, cb),
     onProgress: (cb) => subscribe<SyncProgress>(IPC_EVENTS.IndexProgress, cb)
+  },
+  term: {
+    create: (profile) => ipcRenderer.invoke(IPC.TermCreate, profile),
+    close: (id) => ipcRenderer.invoke(IPC.TermClose, id),
+    list: () => ipcRenderer.invoke(IPC.TermList),
+    attach: (id) => ipcRenderer.invoke(IPC.TermAttach, id),
+    pickCwd: (defaultPath) => ipcRenderer.invoke(IPC.TermPickCwd, defaultPath),
+    write: (id, data) => ipcRenderer.send(IPC_SEND.TermWrite, id, data),
+    resize: (id, cols, rows) => ipcRenderer.send(IPC_SEND.TermResize, id, cols, rows),
+    onData: (cb) => subscribe<{ id: string; data: string }>(IPC_EVENTS.TermData, cb),
+    onOpened: (cb) => subscribe<TerminalInfo>(IPC_EVENTS.TermOpened, cb),
+    onExit: (cb) => subscribe<{ id: string; exitCode: number }>(IPC_EVENTS.TermExit, cb),
+    onClosed: (cb) => subscribe<string>(IPC_EVENTS.TermClosed, cb),
+    onUpdated: (cb) => subscribe<TerminalInfo>(IPC_EVENTS.TermUpdated, cb)
+  },
+  backend: {
+    list: () => ipcRenderer.invoke(IPC.BackendList),
+    save: (input) => ipcRenderer.invoke(IPC.BackendSave, input),
+    delete: (id) => ipcRenderer.invoke(IPC.BackendDelete, id)
+  },
+  hooks: {
+    getState: () => ipcRenderer.invoke(IPC.HooksGetState),
+    setEnabled: (enabled) => ipcRenderer.invoke(IPC.HooksSetEnabled, enabled),
+    onClaudeStatus: (cb) => subscribe<ClaudeStatusEvent>(IPC_EVENTS.ClaudeStatus, cb)
+  },
+  stats: {
+    usage: () => ipcRenderer.invoke(IPC.StatsUsage)
+  },
+  nav: {
+    onNavigate: (cb) => subscribe<NavigateRequest>(IPC_EVENTS.Navigate, cb)
   }
 }
 

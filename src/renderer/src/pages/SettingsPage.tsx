@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { AppSettings, ThemeSetting } from '@shared/types'
+import BackendProfilesSection from '../components/settings/BackendProfilesSection'
+import HooksSection from '../components/settings/HooksSection'
 
 const THEME_OPTIONS: { value: ThemeSetting; label: string }[] = [
   { value: 'dark', label: '暗色' },
@@ -34,7 +36,7 @@ function SettingsPage(): React.JSX.Element {
     <div className="p-8">
       <h1 className="mb-6 text-xl font-semibold">设置</h1>
 
-      <div className="max-w-md space-y-6">
+      <div className="max-w-2xl space-y-6">
         <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
           <h2 className="mb-3 font-medium">外观</h2>
           <div className="flex gap-2">
@@ -78,7 +80,22 @@ function SettingsPage(): React.JSX.Element {
               className="h-4 w-4 accent-[var(--accent)]"
             />
           </label>
+          <label className="flex cursor-pointer items-center justify-between py-1.5">
+            <span>
+              会话等待输入时系统通知
+              <span className="ml-2 text-xs text-[var(--fg-muted)]">需开启 hooks 状态感知</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.notifyWaiting}
+              onChange={(e) => update({ notifyWaiting: e.target.checked })}
+              className="h-4 w-4 accent-[var(--accent)]"
+            />
+          </label>
         </section>
+
+        <HooksSection />
+        <BackendProfilesSection />
       </div>
     </div>
   )
