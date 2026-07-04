@@ -50,9 +50,11 @@ async function main() {
   }
   writeFileSync(claudeSettingsPath, JSON.stringify(originalSettings, null, 2))
 
+  // T1DOO_EXE 指向打包产物（如 dist/win-unpacked/T1doo.exe）时验证打包版；缺省跑开发构建
   const app = await _electron.launch({
-    args: ['.'],
-    cwd: join(__dirname, '..'),
+    ...(process.env.T1DOO_EXE
+      ? { executablePath: process.env.T1DOO_EXE, args: [] }
+      : { args: ['.'], cwd: join(__dirname, '..') }),
     env: {
       ...process.env,
       T1DOO_DB_PATH: join(tmp, 'e2e.db'),
