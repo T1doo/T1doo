@@ -21,6 +21,11 @@ import { ClaudeStatusTracker } from './services/hooks/status'
 import scanWorkerPath from './services/claude/scan.worker?modulePath'
 
 // 单实例锁：二次启动只聚焦已有窗口
+// E2E 隔离：electron-store/DB 默认路径全部改走临时 userData，避免测试污染真实配置
+if (process.env.T1DOO_USER_DATA) {
+  app.setPath('userData', process.env.T1DOO_USER_DATA)
+}
+
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
