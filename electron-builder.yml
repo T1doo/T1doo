@@ -1,0 +1,28 @@
+appId: com.t1doo.app
+productName: T1doo
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md,plan.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{.github,tests}'
+asarUnpack:
+  - resources/**
+win:
+  executableName: T1doo
+  target:
+    - nsis
+    - zip
+  artifactName: T1doo-${version}-win-${arch}-portable.${ext}
+nsis:
+  artifactName: T1doo-Setup-${version}.${ext}
+  shortcutName: T1doo
+  uninstallDisplayName: T1doo
+  createDesktopShortcut: always
+  oneClick: true
+  perMachine: false
+npmRebuild: false
