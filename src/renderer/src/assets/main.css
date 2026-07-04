@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+/*
+ * 主题变量：暗色/亮色由 prefers-color-scheme 驱动。
+ * 主进程把设置写入 nativeTheme.themeSource，渲染层的媒体查询随之切换，
+ * 因此这里不需要任何 JS 换肤逻辑。
+ */
+:root {
+  --bg: #f5f5f7;
+  --bg-panel: #ffffff;
+  --bg-hover: #ececf0;
+  --fg: #1c1c1f;
+  --fg-muted: #6b6b76;
+  --border: #e2e2e8;
+  --accent: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141416;
+    --bg-panel: #1d1d21;
+    --bg-hover: #26262c;
+    --fg: #e8e8ea;
+    --fg-muted: #9a9aa5;
+    --border: #2c2c33;
+    --accent: #f59e0b;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family:
+    'Segoe UI',
+    'Microsoft YaHei UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+code,
+pre {
+  font-family: 'Cascadia Code', 'Cascadia Mono', Consolas, monospace;
+}
