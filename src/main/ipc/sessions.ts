@@ -7,8 +7,13 @@ import { streamCompleteLines } from '../services/claude/reader'
 import type { ExportFormat, SessionFilter } from '../../shared/sessions'
 import type { SessionsDao } from '../db/dao'
 import type { ClaudeDataService } from '../services/claude/sync'
+import type { TerminalManager } from '../services/terminal/manager'
 
-export function registerSessionsIpc(dao: SessionsDao, service: ClaudeDataService): void {
+export function registerSessionsIpc(
+  dao: SessionsDao,
+  service: ClaudeDataService,
+  terminals: TerminalManager
+): void {
   ipcMain.handle(IPC.SessionsList, (_e, filter?: SessionFilter) => dao.listSessions(filter))
 
   ipcMain.handle(IPC.SessionsProjects, () => dao.listProjects())
@@ -23,7 +28,20 @@ export function registerSessionsIpc(dao: SessionsDao, service: ClaudeDataService
     dao.updateSessionMeta(id, patch)
   )
 
-  ipcMain.handle(IPC.SessionsResume, (_e, id: string) => {
+  // M2 起默认在内置终端恢复并自动绑定（§7.2.3）；已有绑定终端则直接复用
+  ipcMain.handle(IPC.SessionsResume, (_e, id: string, backendProfileId?: string) => {
+    const existing = terminals.getBySession(id)
+    if (existing && !existing.exit) return existing
+    const paths = dao.getSessionPath(id)
+    return terminals.create({
+      cwd: paths?.projectPath ?? '',
+      kind: 'claude',
+      claude: { resumeSessionId: id, backendProfileId }
+    })
+  })
+
+  // M1 外部 Windows Terminal 路径保留为可选项
+  ipcMain.handle(IPC.SessionsResumeExternal, (_e, id: string) => {
     const paths = dao.getSessionPath(id)
     resumeSessionExternal(id, paths?.projectPath ?? null)
   })

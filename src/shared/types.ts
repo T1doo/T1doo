@@ -10,13 +10,16 @@ export interface AppSettings {
   autoLaunch: boolean
   /** 点关闭按钮时最小化到托盘而非退出 */
   closeToTray: boolean
+  /** 会话等待输入时弹系统通知（§8 默认开启的两类之一） */
+  notifyWaiting: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   language: 'zh-CN',
   autoLaunch: false,
-  closeToTray: true
+  closeToTray: true,
+  notifyWaiting: true
 }
 
 export interface AppInfo {

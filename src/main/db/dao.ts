@@ -307,6 +307,39 @@ export class SessionsDao {
     const row = this.db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number }
     return row.n
   }
+
+  /** Dashboard 用量（§7.6）：近 N 天 assistant 消息 token 逐日聚合（本地时区切日） */
+  usageDaily(days: number): { day: string; input: number; output: number }[] {
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const since = startOfToday - (days - 1) * 86_400_000
+    const rows = this.db
+      .prepare(
+        `SELECT ts, COALESCE(input_tokens, 0) AS input, COALESCE(output_tokens, 0) AS output
+         FROM messages WHERE role = 'assistant' AND ts >= ?`
+      )
+      .all(since) as { ts: number; input: number; output: number }[]
+
+    const byDay = new Map<string, { input: number; output: number }>()
+    for (let i = 0; i < days; i++) {
+      byDay.set(dayKey(new Date(since + i * 86_400_000)), { input: 0, output: 0 })
+    }
+    for (const r of rows) {
+      const key = dayKey(new Date(r.ts))
+      const bucket = byDay.get(key)
+      if (bucket) {
+        bucket.input += r.input
+        bucket.output += r.output
+      }
+    }
+    return [...byDay.entries()].map(([day, v]) => ({ day, ...v }))
+  }
+}
+
+function dayKey(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${m}-${day}`
 }
 
 /*

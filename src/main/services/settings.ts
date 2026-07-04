@@ -16,6 +16,7 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
   }
   if (typeof patch.autoLaunch === 'boolean') out.autoLaunch = patch.autoLaunch
   if (typeof patch.closeToTray === 'boolean') out.closeToTray = patch.closeToTray
+  if (typeof patch.notifyWaiting === 'boolean') out.notifyWaiting = patch.notifyWaiting
   return out
 }
 
