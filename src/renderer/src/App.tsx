@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import DashboardPage from './pages/DashboardPage'
 import PlaceholderPage from './pages/PlaceholderPage'
+import SessionsPage from './pages/SessionsPage'
 import SettingsPage from './pages/SettingsPage'
 
 const NAV = [
@@ -16,7 +17,6 @@ const NAV = [
 type PageId = (typeof NAV)[number]['id']
 
 const PLACEHOLDERS: Partial<Record<PageId, { title: string; milestone: string }>> = {
-  sessions: { title: '会话中心', milestone: 'M1' },
   terminals: { title: '终端管理', milestone: 'M2' },
   files: { title: '文件中枢', milestone: 'M4' },
   chat: { title: 'AI 对话', milestone: 'M5' },
@@ -55,6 +55,7 @@ function App(): React.JSX.Element {
 
       <main className="min-w-0 flex-1 overflow-auto">
         {page === 'dashboard' && <DashboardPage />}
+        {page === 'sessions' && <SessionsPage />}
         {page === 'settings' && <SettingsPage />}
         {placeholder && (
           <PlaceholderPage title={placeholder.title} milestone={placeholder.milestone} />

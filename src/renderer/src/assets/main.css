@@ -52,3 +52,76 @@ code,
 pre {
   font-family: 'Cascadia Code', 'Cascadia Mono', Consolas, monospace;
 }
+
+/* ---------- Markdown 正文（助手消息） ---------- */
+.md-body {
+  line-height: 1.65;
+  font-size: 14px;
+}
+.md-body > * + * {
+  margin-top: 0.5em;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4 {
+  font-weight: 600;
+  margin-top: 1em;
+}
+.md-body h1 {
+  font-size: 1.25em;
+}
+.md-body h2 {
+  font-size: 1.15em;
+}
+.md-body h3 {
+  font-size: 1.05em;
+}
+.md-body ul,
+.md-body ol {
+  padding-left: 1.4em;
+}
+.md-body ul {
+  list-style: disc;
+}
+.md-body ol {
+  list-style: decimal;
+}
+.md-body a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.md-body blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.8em;
+  color: var(--fg-muted);
+}
+.md-body table {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.md-body th,
+.md-body td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+}
+.md-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- shiki 双主题（跟随 prefers-color-scheme） ---------- */
+.shiki-wrap .shiki {
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+@media (prefers-color-scheme: dark) {
+  .shiki-wrap .shiki,
+  .shiki-wrap .shiki span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+  }
+}

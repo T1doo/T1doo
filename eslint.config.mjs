@@ -6,7 +6,8 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out'] },
+  // scripts/*.cjs 为 CommonJS 开发工具脚本（须以 Electron ABI 的 node 运行），不套 TS 规则
+  { ignores: ['**/node_modules', '**/dist', '**/out', 'scripts/**/*.cjs'] },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],

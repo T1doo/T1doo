@@ -322,7 +322,7 @@ CREATE TABLE messages (
 );
 CREATE VIRTUAL TABLE messages_fts USING fts5(
   content_text, content='messages', content_rowid='rowid',
-  tokenize='unicode61'              -- 中文按字切分：短语查询可用、裸词较噪；M1 评估 simple 分词器（中文+拼音，见 R9）
+  tokenize='unicode61'              -- ⚠️ M1 实测修正：unicode61 把连续 CJK 当单一 token（并非按字切分）。已落地方案：入索引前 CJK 一元切分（插空格），查询侧同样切分并整体短语化，snippet 输出拼回（见 §14.2 2026-07-04 R9 裁决）
 );
 -- ⚠️ external content（content='messages'）不会自动同步：同步逻辑须手动 INSERT INTO messages_fts(rowid, content_text)，或建 AFTER INSERT/UPDATE/DELETE 触发器
 
@@ -600,8 +600,8 @@ interface BackendProfile {
 
 | 里程碑 | 周期 | 交付内容 | 验收标准（可测量） |
 |--------|------|---------|-------------------|
-| **M0 工程奠基** | 第 1 周 | electron-vite + React + TS strict 脚手架；主窗/托盘/单实例/主题；settings 存储；ESLint/Prettier/CI（lint+build）；electron-builder 能出安装包 | ① 空壳应用可安装运行退出无残留进程；② CI 绿；③ `pnpm dev` 热更新可用 |
-| **M1 会话中心** | 第 2-3 周 | JSONL 发现/容错解析/全量+增量同步；SQLite+FTS5；**解析时顺带采集 tool_use 文件路径 → session_files（供 F4 联动）**；会话列表/搜索/详情回放；外部终端恢复；导出 md/json；fixtures 回归测试 | ① 本机全部历史会话完整入库，抽查 10 个会话渲染无错；② 全量冷同步 1GB 数据 < 60s（本机真实基线：主会话 291MB/270 文件，应 < 20s；嵌套转录 222MB 不入索引，见 §6.3），增量感知 < 1s；③ 搜索 10 万消息 < 200ms；④ 恢复命令成功拉起 `wt` 并续聊；⑤ 解析器对 fixtures 中"未知类型行/损坏行"零崩溃 |
+| **M0 工程奠基** ✅ 2026-07-04（PR #1） | 第 1 周 | electron-vite + React + TS strict 脚手架；主窗/托盘/单实例/主题；settings 存储；ESLint/Prettier/CI（lint+build）；electron-builder 能出安装包 | ① ✅ 打包版实测（单实例锁生效、退出零残留、~344MB）；② ✅ PR #1 CI 绿；③ ✅ HMR 实测即时推送。NSIS 安装→卸载全流程留手动复核 |
+| **M1 会话中心** ✅ 2026-07-04 | 第 2-3 周 | JSONL 发现/容错解析/全量+增量同步；SQLite+FTS5；**解析时顺带采集 tool_use 文件路径 → session_files（供 F4 联动）**；会话列表/搜索/详情回放；外部终端恢复；导出 md/json；fixtures 回归测试 | ① ✅ 271 会话/19k 消息/2993 条文件联动入库，E2E 抽查 10 个会话渲染零报错；② ✅ 冷同步 291MB/271 文件 = 4.6s，增量感知 323ms（含 300ms 防抖，半行容错实测）；③ ✅ 19k 消息搜索 <3ms（10 万级余量充足）；④ 恢复按钮按 A.4 实测命令实现，**拉起 wt 续聊留手动点验**（自动测试会真实消耗额度）；⑤ ✅ fixtures 15 项单测全绿（坏行/未知类型/半行/CJK 切分） |
 | **M2 内置终端** | 第 4-6 周 | node-pty+xterm 多标签/分屏；Profile 启动；**后端档案（订阅态 + 自定义后端 baseURL/token/模型 注入，token 走 safeStorage）**；`--session-id` 绑定 + 兜底关联；hooks 状态感知（含设置页开关、注册/还原）；状态角标+系统通知；Dashboard 初版 | ① 同开 6 个终端输入输出流畅（输入延迟 < 50ms 主观无感）；② 状态变化（working/waiting/idle）UI 反映 < 1s（hooks 开启时）；③ hooks 开→关，settings.json 精确还原；④ 从历史会话一键在内置终端恢复并回连绑定；⑤ 关闭应用无孤儿 claude/pty 进程；⑥ 用自定义后端档案新建终端，`claude` 实际连到该后端可对话，且 token 在磁盘为 DPAPI 密文 |
 | **M3 启动器（CC 入口）** | 第 7-8 周 | 全局热键唤起窗；**CC 对象秒跳（项目/会话/终端/最近提示词，优先级最高）**；应用扫描（.lnk+UWP,够用层）+ 图标缓存；文件/URL/内部命令路由；frecency 排序 | ① 热键唤起 → 可输入 < 100ms；② 输入到结果渲染 < 50ms（本地源）；③ **输入项目/会话名可秒跳（新建终端 / 恢复会话）**；④ 应用扫描覆盖开始菜单主项（抽查 20 个含 UWP 均可启动）；⑤ 热键冲突可检测并改绑 |
 | **M4 文件中枢（CC 入口）** | 第 9-10 周 | **会话-文件联动 UI（文件↔会话反查、最近被会话改的文件流；数据 M1 已采集）**；订阅目录索引（Worker+chokidar）+ FTS5；文件页（搜索/筛选/最近/收藏/标签/右键"跳到会话"）；Everything 检测与集成 | ① **任选一个被会话改过的文件，能列出动过它的会话并跳转**；② 10 万文件全量索引 < 60s，索引期间 UI 不卡；③ 新建/改名文件 2s 内可搜到；④ 装有 Everything 时全盘搜索生效且标注来源；⑤ 索引 DB 体积 10 万文件 < 50MB |
@@ -713,6 +713,9 @@ interface BackendProfile {
 | 2026-07-03 | 评审加固（Pass 2/3）：R9 中文搜索升"中"并 M1 评估 `simple` 分词器；§6.3 增量补"半行"处理；FTS external-content 手动填充；worker 只解析、主线程独占写库；§7.2.3 绑定改"新建/恢复均用已知 id + hooks 权威校正"；补 F7 设置线 | 消除写代码时才暴露的正确性/体验雷（§4.2/§5/§6/§7） |
 | 2026-07-04 | **实测补强（v1.1）**：① `--session-id` 新建 + `--resume` 同 id 追加实测成立，R8 降"低"（§7.2.3）；② 后端环境变量经官方文档核实，`ANTHROPIC_SMALL_FAST_MODEL` 弃用（§7.2.6）；③ hooks 事件表更新——`PermissionRequest` 为 waiting 主信号、`Notification` 降为补充（§7.2.4）；④ 行类型白名单按全量扫描重写，标题源改 `custom-title`/`ai-title`（§6.1）；⑤ 发现 `<sessionId>/subagents`、`wf_*` 嵌套转录占本机数据 ~43%，裁决 v1 不入索引、详情页按需解析（§6.1/§6.3）；⑥ 模型表补 Fable 5（暂缓）并复核定价（§7.5.1） | 本机 2.1.196 无头实测 + 官方文档核对，全记录见附录 A.6 |
 | 2026-07-04 | F5 cli 引擎多轮对话采用 `--input-format stream-json` 单进程长连；快捷问答默认 `--tools ""` + 可选 `--no-session-persistence`；任务队列加 `--max-budget-usd` 成本闸并直接采集 result 事件成本字段 | CLI 能力实测确认，减少子进程开销与会话污染（§7.5） |
+| 2026-07-04 | **M0 交付偏差**：① React 19 替代计划中的 18（脚手架当前版，生态兼容）；② electron-store 锁 v8——electron-vite 会外部化 dependencies，而 v10+ 纯 ESM 与 CJS 主进程不兼容，主进程迁 ESM 前不升级；③ 主题实现收敛为"主进程 nativeTheme.themeSource + 渲染层 prefers-color-scheme"，零 JS 换肤逻辑；④ pnpm 11 依赖构建脚本审批迁至 pnpm-workspace.yaml `allowBuilds` 键 | M0 实装结论（§4.2/§8） |
+| 2026-07-04 | **R9 裁决（M1 实测）**：unicode61 实为"连续 CJK 单 token"，中文命中率仅 LIKE 基线 ~1/5（"性能" 9 vs 48）→ 落地"CJK 一元切分入索引 + 查询短语化 + snippet 拼回"，命中率追平 LIKE 基线、零原生依赖；`simple` 分词器转 backlog。另修正：FK 级联删除不触发 FTS 触发器，replace 须先显式 DELETE messages | M1 实测数据（§6.2 注释已修正） |
+| 2026-07-04 | **M1 架构落地**：全部 JSONL 解析走 worker_threads（electron-vite `?modulePath`），主线程唯一写库；详情回放按需 worker 解析全文（列表只用 DB 摘要）；messages.content_text 仅服务 FTS（存 CJK 切分形态）；E2E 冒烟用 playwright-core `_electron`（含增量延迟量测脚本 scripts/e2e-*.cjs） | §5.1 原则 3 落实；性能数据见 §9 M1 验收 |
 
 ---
 

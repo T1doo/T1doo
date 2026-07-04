@@ -2,9 +2,18 @@
 export const IPC = {
   SettingsGet: 'settings:get',
   SettingsSet: 'settings:set',
-  AppInfo: 'app:info'
+  AppInfo: 'app:info',
+  SessionsList: 'sessions:list',
+  SessionsProjects: 'sessions:projects',
+  SessionsGet: 'sessions:get',
+  SessionsSearch: 'sessions:search',
+  SessionsExport: 'sessions:export',
+  SessionsResume: 'sessions:resume',
+  SessionsUpdate: 'sessions:update'
 } as const
 
 export const IPC_EVENTS = {
-  SettingsUpdated: 'evt:settings:updated'
+  SettingsUpdated: 'evt:settings:updated',
+  SessionsUpdated: 'evt:sessions:updated',
+  IndexProgress: 'evt:index:progress'
 } as const
