@@ -1,23 +1,30 @@
-import { BrowserWindow, app, nativeTheme } from 'electron'
+import { BrowserWindow, app, clipboard, nativeTheme, shell } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { join } from 'path'
 import { homedir } from 'os'
 import { APP_ID } from '../shared/constants'
 import { IPC_EVENTS } from '../shared/ipc'
+import type { LauncherState } from '../shared/launcher'
 import { WindowManager } from './core/window-manager'
+import { LauncherWindow } from './core/launcher-window'
+import { LauncherShortcut } from './core/shortcut'
 import { createTray } from './core/tray'
 import { applyAutoLaunch } from './core/auto-launch'
 import { SettingsService } from './services/settings'
 import { registerIpcHandlers } from './ipc'
 import { registerSessionsIpc } from './ipc/sessions'
 import { registerTerminalsIpc } from './ipc/terminals'
+import { registerLauncherIpc } from './ipc/launcher'
 import { openDatabase } from './db'
 import { SessionsDao } from './db/dao'
+import { LauncherDao } from './db/launcher-dao'
 import { ClaudeDataService, defaultProjectsDir } from './services/claude/sync'
 import { BackendProfilesService } from './services/backend/profiles'
 import { TerminalManager } from './services/terminal/manager'
 import { HooksService } from './services/hooks/server'
 import { ClaudeStatusTracker } from './services/hooks/status'
+import { LauncherService } from './services/launcher/service'
+import { RecentPromptsReader } from './services/launcher/prompts'
 import scanWorkerPath from './services/claude/scan.worker?modulePath'
 
 // 单实例锁：二次启动只聚焦已有窗口
@@ -32,10 +39,13 @@ if (!gotLock) {
 } else {
   const settings = new SettingsService()
   const windows = new WindowManager(() => settings.get().closeToTray)
+  const launcherWin = new LauncherWindow()
+  const shortcut = new LauncherShortcut()
   let claudeData: ClaudeDataService | null = null
   let terminals: TerminalManager | null = null
   let hooks: HooksService | null = null
   let statusTracker: ClaudeStatusTracker | null = null
+  let appScanTimer: NodeJS.Timeout | null = null
 
   app.on('second-instance', () => {
     windows.showMainWindow()
@@ -43,12 +53,15 @@ if (!gotLock) {
 
   app.on('before-quit', () => {
     windows.setQuitting(true)
+    launcherWin.setQuitting(true)
   })
 
   app.on('will-quit', () => {
     terminals?.disposeAll() // 杀全部 pty 进程树，不留孤儿（验收⑤）
     hooks?.dispose()
     statusTracker?.dispose()
+    shortcut.dispose()
+    if (appScanTimer) clearInterval(appScanTimer)
     void claudeData?.dispose()
   })
 
@@ -121,9 +134,73 @@ if (!gotLock) {
       (msg) => console.log('[hooks]', msg)
     )
 
+    // F3 启动器：服务 + 独立窗口 + 全局热键（§7.3）
+    const launcherDao = new LauncherDao(db)
+    const launcher = new LauncherService({
+      sessionsDao: dao,
+      launcherDao,
+      terminals,
+      prompts: new RecentPromptsReader(
+        process.env.T1DOO_CLAUDE_HISTORY ?? join(homedir(), '.claude', 'history.jsonl')
+      ),
+      getSearchUrl: () => settings.get().launcherSearchUrl,
+      effects: {
+        openExternal: (url) => void shell.openExternal(url),
+        openPath: (path) => shell.openPath(path),
+        copyText: (text) => clipboard.writeText(text),
+        navigateMain: (req) => {
+          launcherWin.hide()
+          windows.showMainWindow()
+          windows.broadcast(IPC_EVENTS.Navigate, req)
+        },
+        hideLauncher: () => launcherWin.hide(),
+        quitApp: () => {
+          windows.setQuitting(true)
+          launcherWin.setQuitting(true)
+          app.quit()
+        },
+        getIcon: async (path) => {
+          const img = await app.getFileIcon(path, { size: 'normal' })
+          return img.isEmpty() ? null : img.toDataURL()
+        }
+      },
+      log: (msg) => console.log('[launcher]', msg)
+    })
+    launcher.lastScanAt = launcherDao.lastScanAt()
+
+    const launcherState = (): LauncherState => ({
+      hotkey: settings.get().launcherHotkey,
+      hotkeyRegistered: shortcut.registered,
+      appCount: launcher.appCount(),
+      scanning: launcher.scanning,
+      lastScanAt: launcher.lastScanAt
+    })
+    const emitLauncherState = (): void =>
+      windows.broadcast(IPC_EVENTS.LauncherState, launcherState())
+
+    const toggleLauncher = (): void => {
+      if (!launcherWin.isVisible()) launcher.refresh() // 唤起时重建 frecency/提示词缓存
+      launcherWin.toggle()
+    }
+    shortcut.apply(settings.get().launcherHotkey, toggleLauncher)
+    let currentHotkey = settings.get().launcherHotkey
+    settings.onChange((s) => {
+      if (s.launcherHotkey !== currentHotkey) {
+        currentHotkey = s.launcherHotkey
+        shortcut.apply(s.launcherHotkey, toggleLauncher)
+        emitLauncherState()
+      }
+    })
+
     registerIpcHandlers(settings)
     registerSessionsIpc(dao, claudeData, terminals)
     registerTerminalsIpc({ terminals, backends, hooks, dao })
+    registerLauncherIpc({
+      service: launcher,
+      getState: launcherState,
+      hide: () => launcherWin.hide(),
+      emitState: emitLauncherState
+    })
 
     createTray({
       onShow: () => windows.showMainWindow(),
@@ -136,10 +213,24 @@ if (!gotLock) {
     // 开机自启带 --hidden：静默启动到托盘
     const startHidden = process.argv.includes('--hidden')
     windows.createMainWindow(!startHidden)
+    launcherWin.create() // 预创建隐藏窗，热键唤起零加载开销
 
     // 窗口先出，重同步与 hooks 恢复随后跑（不阻塞首屏）
     void claudeData.start().catch((err) => console.error('[claude-sync] 启动失败', err))
     void hooks.init().catch((err) => console.error('[hooks] 启动恢复失败', err))
+
+    // 应用索引：启动 5s 后补扫（首启/超 24h），此后每 24h 刷新（§7.3 刷新策略）
+    const SCAN_INTERVAL = 24 * 3_600_000
+    const scanIfStale = (): void => {
+      if (launcher.scanning) return
+      if (launcher.lastScanAt && Date.now() - launcher.lastScanAt < SCAN_INTERVAL) return
+      launcher
+        .scanApps()
+        .then(() => emitLauncherState())
+        .catch((err) => console.error('[launcher] 应用扫描失败', err))
+    }
+    setTimeout(scanIfStale, 5_000)
+    appScanTimer = setInterval(scanIfStale, SCAN_INTERVAL)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) windows.showMainWindow()

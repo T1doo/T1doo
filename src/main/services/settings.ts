@@ -17,6 +17,12 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
   if (typeof patch.autoLaunch === 'boolean') out.autoLaunch = patch.autoLaunch
   if (typeof patch.closeToTray === 'boolean') out.closeToTray = patch.closeToTray
   if (typeof patch.notifyWaiting === 'boolean') out.notifyWaiting = patch.notifyWaiting
+  if (typeof patch.launcherHotkey === 'string' && patch.launcherHotkey.trim()) {
+    out.launcherHotkey = patch.launcherHotkey.trim()
+  }
+  if (typeof patch.launcherSearchUrl === 'string' && /^https?:\/\//.test(patch.launcherSearchUrl)) {
+    out.launcherSearchUrl = patch.launcherSearchUrl.trim()
+  }
   return out
 }
 

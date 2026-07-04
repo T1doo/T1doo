@@ -25,13 +25,19 @@ export const IPC = {
   HooksGetState: 'hooks:get-state',
   HooksSetEnabled: 'hooks:set-enabled',
   // Dashboard
-  StatsUsage: 'stats:usage'
+  StatsUsage: 'stats:usage',
+  // F3 启动器（§7.3）
+  LauncherQuery: 'launcher:query',
+  LauncherExecute: 'launcher:execute',
+  LauncherGetState: 'launcher:get-state',
+  LauncherRescanApps: 'launcher:rescan-apps'
 } as const
 
 /** 一发通道（ipcRenderer.send，高频低延迟：键入与resize） */
 export const IPC_SEND = {
   TermWrite: 'term:write',
-  TermResize: 'term:resize'
+  TermResize: 'term:resize',
+  LauncherHide: 'launcher:hide'
 } as const
 
 export const IPC_EVENTS = {
@@ -45,5 +51,9 @@ export const IPC_EVENTS = {
   TermUpdated: 'evt:terminal:updated',
   ClaudeStatus: 'evt:claude:status',
   /** 主进程要求跳转（系统通知点击等）：payload = { page, terminalId? } */
-  Navigate: 'evt:navigate'
+  Navigate: 'evt:navigate',
+  /** 启动器窗口即将显示：渲染层清空输入并聚焦 */
+  LauncherShow: 'evt:launcher:show',
+  /** 启动器运行时状态变化（扫描完成/热键改绑结果） */
+  LauncherState: 'evt:launcher:state'
 } as const

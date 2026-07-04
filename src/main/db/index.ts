@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { dirname } from 'path'
 import migration001 from './migrations/001_sessions.sql?raw'
+import migration002 from './migrations/002_launcher.sql?raw'
 
 interface Migration {
   version: number
@@ -9,7 +10,10 @@ interface Migration {
   sql: string
 }
 
-const MIGRATIONS: Migration[] = [{ version: 1, name: 'sessions', sql: migration001 }]
+const MIGRATIONS: Migration[] = [
+  { version: 1, name: 'sessions', sql: migration001 },
+  { version: 2, name: 'launcher', sql: migration002 }
+]
 
 /** 打开（必要时创建）数据库：WAL、外键、按序迁移；升级前自动备份 */
 export function openDatabase(dbPath: string): Database.Database {

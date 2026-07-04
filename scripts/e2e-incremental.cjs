@@ -2,7 +2,7 @@
  * 用法：node scripts/e2e-incremental.cjs
  */
 const { _electron } = require('playwright-core')
-const { mkdtempSync, mkdirSync, copyFileSync, appendFileSync } = require('fs')
+const { mkdtempSync, mkdirSync, copyFileSync, appendFileSync, writeFileSync } = require('fs')
 const { tmpdir } = require('os')
 const { join } = require('path')
 
@@ -13,6 +13,8 @@ async function main() {
   const projectsDir = join(root, 'projects')
   const slugDir = join(projectsDir, 'E--Demo-ProjectA')
   mkdirSync(slugDir, { recursive: true })
+  mkdirSync(join(root, 'user-data'), { recursive: true })
+  writeFileSync(join(root, 'claude-settings.json'), '{}')
   const sessionFile = join(slugDir, `${SESSION_ID}.jsonl`)
   copyFileSync(
     join(__dirname, '..', 'tests', 'fixtures', 'claude-jsonl', 'normal.jsonl'),
@@ -25,7 +27,10 @@ async function main() {
     env: {
       ...process.env,
       T1DOO_PROJECTS_DIR: projectsDir,
-      T1DOO_DB_PATH: join(root, 'test.db')
+      T1DOO_DB_PATH: join(root, 'test.db'),
+      // 隔离三件套：常驻托盘的安装版持有单实例锁，不隔离 userData 会启动即退（exit 0）
+      T1DOO_USER_DATA: join(root, 'user-data'),
+      T1DOO_CLAUDE_SETTINGS: join(root, 'claude-settings.json')
     }
   })
   const win = await app.firstWindow()
