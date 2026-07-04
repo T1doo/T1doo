@@ -88,7 +88,13 @@ export class TerminalManager {
       status: profile.kind === 'claude' ? 'idle' : null,
       exit: null
     }
-    const record: TermRecord = { info, pty, buffer: new RingBuffer(), pending: '', flushTimer: null }
+    const record: TermRecord = {
+      info,
+      pty,
+      buffer: new RingBuffer(),
+      pending: '',
+      flushTimer: null
+    }
     this.records.set(id, record)
 
     pty.onData((data) => {
@@ -130,9 +136,7 @@ export class TerminalManager {
   }
 
   list(): TerminalInfo[] {
-    return [...this.records.values()]
-      .map((r) => r.info)
-      .sort((a, b) => a.createdAt - b.createdAt)
+    return [...this.records.values()].map((r) => r.info).sort((a, b) => a.createdAt - b.createdAt)
   }
 
   close(id: string): void {
@@ -222,5 +226,8 @@ export class TerminalManager {
 }
 
 function normalizePath(p: string): string {
-  return p.replace(/[\\/]+$/, '').replace(/\//g, '\\').toLowerCase()
+  return p
+    .replace(/[\\/]+$/, '')
+    .replace(/\//g, '\\')
+    .toLowerCase()
 }

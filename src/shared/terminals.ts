@@ -7,12 +7,7 @@ export type ClaudeStatus = 'working' | 'waiting' | 'idle'
 
 /** 2.1.196 `--help` 实测全集（§7.2.2） */
 export type PermissionMode =
-  | 'default'
-  | 'acceptEdits'
-  | 'plan'
-  | 'dontAsk'
-  | 'auto'
-  | 'bypassPermissions'
+  'default' | 'acceptEdits' | 'plan' | 'dontAsk' | 'auto' | 'bypassPermissions'
 
 export interface ClaudeLaunchOptions {
   /** 引用后端档案；缺省 = 订阅态（不注入任何 ANTHROPIC_*） */

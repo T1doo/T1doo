@@ -60,7 +60,10 @@ describe('buildClaudeEnv（§7.2.6 注入机制）', () => {
   })
 
   it('custom：extraEnv 追加且可覆盖，空键丢弃', () => {
-    const env = buildClaudeEnv(BASE, custom({ extraEnv: { ANTHROPIC_CUSTOM_HEADERS: 'x: 1', '': 'drop' } }))
+    const env = buildClaudeEnv(
+      BASE,
+      custom({ extraEnv: { ANTHROPIC_CUSTOM_HEADERS: 'x: 1', '': 'drop' } })
+    )
     expect(env.ANTHROPIC_CUSTOM_HEADERS).toBe('x: 1')
     expect('' in env).toBe(false)
   })
@@ -74,9 +77,9 @@ describe('buildClaudeEnv（§7.2.6 注入机制）', () => {
 
 describe('redactSecrets（token 不落日志）', () => {
   it('替换全部命中；短于 8 字符的秘密不参与（避免误伤）', () => {
-    expect(redactSecrets('token=sk-test-1234567890 again sk-test-1234567890', ['sk-test-1234567890'])).toBe(
-      'token=*** again ***'
-    )
+    expect(
+      redactSecrets('token=sk-test-1234567890 again sk-test-1234567890', ['sk-test-1234567890'])
+    ).toBe('token=*** again ***')
     expect(redactSecrets('short abc', ['abc'])).toBe('short abc')
   })
 })

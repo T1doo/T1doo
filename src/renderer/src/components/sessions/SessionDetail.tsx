@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { MessageView, SessionSummary } from '@shared/sessions'
 import MessageItem from './MessageItem'
 import { formatDateTime, formatTokens, projectShortName } from '../../lib/format'
+import { useAppNav } from '../../lib/app-nav'
 
 type DetailItem =
   { kind: 'msg'; message: MessageView } | { kind: 'sidechain'; messages: MessageView[] }
@@ -56,6 +57,7 @@ interface SessionDetailProps {
 }
 
 function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX.Element {
+  const nav = useAppNav()
   const detailQuery = useQuery({
     queryKey: ['session', sessionId],
     queryFn: () => window.t1doo.sessions.get(sessionId)
@@ -113,6 +115,13 @@ function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX
     void window.t1doo.sessions.update(s.id, { pinned: next })
   }
 
+  // M2：默认在内置终端恢复并跳转聚焦（§7.2.3 自动绑定）
+  const resumeInApp = (): void => {
+    void window.t1doo.sessions.resume(s.id).then((info) => {
+      nav.goTerminal(info.id)
+    })
+  }
+
   const doExport = (fmt: 'md' | 'json'): void => {
     void window.t1doo.sessions.export(s.id, fmt).then((path) => {
       if (path) {
@@ -141,11 +150,19 @@ function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX
           </button>
           <button
             type="button"
-            onClick={() => void window.t1doo.sessions.resume(s.id)}
-            title="在 Windows Terminal 中恢复此会话"
+            onClick={resumeInApp}
+            title="在内置终端恢复此会话（自动绑定状态感知）"
             className="rounded-md border border-[var(--accent)] px-3 py-1 text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)]"
           >
             ▶ 恢复会话
+          </button>
+          <button
+            type="button"
+            onClick={() => void window.t1doo.sessions.resumeExternal(s.id)}
+            title="在外部 Windows Terminal 恢复"
+            className="rounded-md border border-[var(--border)] px-2 py-1 text-sm text-[var(--fg-muted)] hover:bg-[var(--bg-hover)]"
+          >
+            ↗ wt
           </button>
           <button
             type="button"

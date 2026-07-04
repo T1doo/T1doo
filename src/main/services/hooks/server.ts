@@ -112,10 +112,7 @@ export class HooksService {
     })
   }
 
-  private handle(
-    req: import('http').IncomingMessage,
-    res: import('http').ServerResponse
-  ): void {
+  private handle(req: import('http').IncomingMessage, res: import('http').ServerResponse): void {
     if (req.method !== 'POST' || !req.url?.startsWith('/t1doo-hook')) {
       res.writeHead(404).end()
       return

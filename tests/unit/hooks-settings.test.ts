@@ -43,7 +43,9 @@ describe('hooks settings.json 注册/还原（§7.2.4，验收③）', () => {
       expect(groups.some((g) => g.hooks.some((h) => h.command === CMD))).toBe(true)
     }
     // 用户自有 Stop hook 与 PreToolUse 守卫仍在
-    expect(hooks.Stop.some((g) => g.hooks.some((h) => h.command.includes('user-own-stop-hook')))).toBe(true)
+    expect(
+      hooks.Stop.some((g) => g.hooks.some((h) => h.command.includes('user-own-stop-hook')))
+    ).toBe(true)
     expect(hooks.PreToolUse).toHaveLength(1)
   })
 
@@ -53,7 +55,9 @@ describe('hooks settings.json 注册/还原（§7.2.4，验收③）', () => {
     const twice = mergeHooks(once, newCmd)
     const hooks = twice.hooks as Record<string, { hooks: { command: string }[] }[]>
     for (const event of HOOK_EVENTS) {
-      const ours = hooks[event].flatMap((g) => g.hooks).filter((h) => h.command.includes('/t1doo-hook'))
+      const ours = hooks[event]
+        .flatMap((g) => g.hooks)
+        .filter((h) => h.command.includes('/t1doo-hook'))
       expect(ours).toHaveLength(1)
       expect(ours[0].command).toBe(newCmd)
     }
