@@ -5,6 +5,7 @@ import type { NavigateRequest, T1dooApi } from '../shared/api'
 import type { AppSettings } from '../shared/types'
 import type { SyncProgress } from '../shared/sessions'
 import type { ClaudeStatusEvent, TerminalInfo } from '../shared/terminals'
+import type { LauncherState } from '../shared/launcher'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_event: IpcRendererEvent, payload: T): void => cb(payload)
@@ -62,6 +63,15 @@ const api: T1dooApi = {
   },
   stats: {
     usage: () => ipcRenderer.invoke(IPC.StatsUsage)
+  },
+  launcher: {
+    query: (q) => ipcRenderer.invoke(IPC.LauncherQuery, q),
+    execute: (item) => ipcRenderer.invoke(IPC.LauncherExecute, item),
+    hide: () => ipcRenderer.send(IPC_SEND.LauncherHide),
+    getState: () => ipcRenderer.invoke(IPC.LauncherGetState),
+    rescanApps: () => ipcRenderer.invoke(IPC.LauncherRescanApps),
+    onShow: (cb) => subscribe<void>(IPC_EVENTS.LauncherShow, cb),
+    onState: (cb) => subscribe<LauncherState>(IPC_EVENTS.LauncherState, cb)
   },
   nav: {
     onNavigate: (cb) => subscribe<NavigateRequest>(IPC_EVENTS.Navigate, cb)

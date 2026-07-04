@@ -10,6 +10,12 @@ import type {
 } from './sessions'
 import type { BackendProfileInput, BackendProfileView } from './backend'
 import type {
+  LauncherExecuteResult,
+  LauncherItem,
+  LauncherQueryResult,
+  LauncherState
+} from './launcher'
+import type {
   ClaudeStatusEvent,
   HooksState,
   TerminalAttachResult,
@@ -90,6 +96,17 @@ export interface T1dooApi {
   }
   stats: {
     usage(): Promise<UsageStats>
+  }
+  launcher: {
+    query(q: string): Promise<LauncherQueryResult>
+    execute(item: LauncherItem): Promise<LauncherExecuteResult>
+    /** 渲染层请求隐藏启动器窗（Esc/执行完成） */
+    hide(): void
+    getState(): Promise<LauncherState>
+    /** 手动重扫开始菜单应用，返回扫描后的应用数 */
+    rescanApps(): Promise<number>
+    onShow(cb: () => void): () => void
+    onState(cb: (state: LauncherState) => void): () => void
   }
   nav: {
     onNavigate(cb: (req: NavigateRequest) => void): () => void
