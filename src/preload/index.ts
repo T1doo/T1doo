@@ -6,6 +6,7 @@ import type { AppSettings } from '../shared/types'
 import type { SyncProgress } from '../shared/sessions'
 import type { ClaudeStatusEvent, TerminalInfo } from '../shared/terminals'
 import type { LauncherState } from '../shared/launcher'
+import type { FilesIndexProgress } from '../shared/files'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_event: IpcRendererEvent, payload: T): void => cb(payload)
@@ -72,6 +73,26 @@ const api: T1dooApi = {
     rescanApps: () => ipcRenderer.invoke(IPC.LauncherRescanApps),
     onShow: (cb) => subscribe<void>(IPC_EVENTS.LauncherShow, cb),
     onState: (cb) => subscribe<LauncherState>(IPC_EVENTS.LauncherState, cb)
+  },
+  files: {
+    search: (q, opts) => ipcRenderer.invoke(IPC.FilesSearch, q, opts),
+    activity: (limit) => ipcRenderer.invoke(IPC.FilesActivity, limit),
+    sessionsFor: (path) => ipcRenderer.invoke(IPC.FilesSessionsFor, path),
+    pinned: () => ipcRenderer.invoke(IPC.FilesPinned),
+    recentOpened: (limit) => ipcRenderer.invoke(IPC.FilesRecentOpened, limit),
+    getState: () => ipcRenderer.invoke(IPC.FilesGetState),
+    addDir: () => ipcRenderer.invoke(IPC.FilesAddDir),
+    removeDir: (id) => ipcRenderer.invoke(IPC.FilesRemoveDir, id),
+    setDirEnabled: (id, enabled) => ipcRenderer.invoke(IPC.FilesSetDirEnabled, id, enabled),
+    rescan: (dirId) => ipcRenderer.invoke(IPC.FilesRescan, dirId),
+    setMeta: (path, patch) => ipcRenderer.invoke(IPC.FilesSetMeta, path, patch),
+    open: (path) => ipcRenderer.invoke(IPC.FilesOpen, path),
+    reveal: (path) => ipcRenderer.invoke(IPC.FilesReveal, path),
+    copyPath: (path) => ipcRenderer.invoke(IPC.FilesCopyPath, path),
+    openTerminal: (path) => ipcRenderer.invoke(IPC.FilesOpenTerminal, path),
+    detectEverything: () => ipcRenderer.invoke(IPC.FilesDetectEverything),
+    onIndexProgress: (cb) => subscribe<FilesIndexProgress>(IPC_EVENTS.FilesIndexProgress, cb),
+    onUpdated: (cb) => subscribe<void>(IPC_EVENTS.FilesUpdated, cb)
   },
   nav: {
     onNavigate: (cb) => subscribe<NavigateRequest>(IPC_EVENTS.Navigate, cb)

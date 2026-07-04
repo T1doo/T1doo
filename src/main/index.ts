@@ -15,9 +15,11 @@ import { registerIpcHandlers } from './ipc'
 import { registerSessionsIpc } from './ipc/sessions'
 import { registerTerminalsIpc } from './ipc/terminals'
 import { registerLauncherIpc } from './ipc/launcher'
+import { registerFilesIpc } from './ipc/files'
 import { openDatabase } from './db'
 import { SessionsDao } from './db/dao'
 import { LauncherDao } from './db/launcher-dao'
+import { FilesDao } from './db/files-dao'
 import { ClaudeDataService, defaultProjectsDir } from './services/claude/sync'
 import { BackendProfilesService } from './services/backend/profiles'
 import { TerminalManager } from './services/terminal/manager'
@@ -25,7 +27,10 @@ import { HooksService } from './services/hooks/server'
 import { ClaudeStatusTracker } from './services/hooks/status'
 import { LauncherService } from './services/launcher/service'
 import { RecentPromptsReader } from './services/launcher/prompts'
+import { IndexerService } from './services/indexer/service'
+import { EverythingBridge } from './services/indexer/everything'
 import scanWorkerPath from './services/claude/scan.worker?modulePath'
+import fsScanWorkerPath from './services/indexer/fs-scan.worker?modulePath'
 
 // 单实例锁：二次启动只聚焦已有窗口
 // E2E 隔离：electron-store/DB 默认路径全部改走临时 userData，避免测试污染真实配置
@@ -46,6 +51,7 @@ if (!gotLock) {
   let hooks: HooksService | null = null
   let statusTracker: ClaudeStatusTracker | null = null
   let appScanTimer: NodeJS.Timeout | null = null
+  let indexer: IndexerService | null = null
 
   app.on('second-instance', () => {
     windows.showMainWindow()
@@ -63,6 +69,7 @@ if (!gotLock) {
     shortcut.dispose()
     if (appScanTimer) clearInterval(appScanTimer)
     void claudeData?.dispose()
+    void indexer?.dispose()
   })
 
   app.on('window-all-closed', () => {
@@ -134,6 +141,32 @@ if (!gotLock) {
       (msg) => console.log('[hooks]', msg)
     )
 
+    // F4 文件中枢：订阅目录索引 + Everything 桥（§7.4）
+    const filesDao = new FilesDao(db)
+    // T1DOO_WATCH_DIRS（分号分隔）仅供开发与 E2E 测试预置订阅目录
+    if (process.env.T1DOO_WATCH_DIRS) {
+      for (const p of process.env.T1DOO_WATCH_DIRS.split(';').filter(Boolean)) {
+        filesDao.addDir(p, Date.now())
+      }
+    }
+    const everything = new EverythingBridge((msg) => console.log('[everything]', msg))
+    indexer = new IndexerService({
+      dao: filesDao,
+      workerPath: fsScanWorkerPath,
+      getExcludeDirs: () => settings.get().filesExcludeDirs,
+      emitProgress: (p) => windows.broadcast(IPC_EVENTS.FilesIndexProgress, p),
+      emitFilesUpdated: () => windows.broadcast(IPC_EVENTS.FilesUpdated),
+      log: (msg) => console.log('[indexer]', msg)
+    })
+    let currentExcludeDirs = JSON.stringify(settings.get().filesExcludeDirs)
+    settings.onChange((s) => {
+      const next = JSON.stringify(s.filesExcludeDirs)
+      if (next !== currentExcludeDirs) {
+        currentExcludeDirs = next
+        indexer?.onExcludeDirsChanged()
+      }
+    })
+
     // F3 启动器：服务 + 独立窗口 + 全局热键（§7.3）
     const launcherDao = new LauncherDao(db)
     const launcher = new LauncherService({
@@ -146,7 +179,10 @@ if (!gotLock) {
       getSearchUrl: () => settings.get().launcherSearchUrl,
       effects: {
         openExternal: (url) => void shell.openExternal(url),
-        openPath: (path) => shell.openPath(path),
+        openPath: (path) => {
+          filesDao.recordOpen(path, Date.now()) // F4「最近打开」流也吃启动器的打开动作
+          return shell.openPath(path)
+        },
         copyText: (text) => clipboard.writeText(text),
         navigateMain: (req) => {
           launcherWin.hide()
@@ -195,6 +231,7 @@ if (!gotLock) {
     registerIpcHandlers(settings)
     registerSessionsIpc(dao, claudeData, terminals)
     registerTerminalsIpc({ terminals, backends, hooks, dao })
+    registerFilesIpc({ dao: filesDao, indexer, everything, terminals })
     registerLauncherIpc({
       service: launcher,
       getState: launcherState,
@@ -218,6 +255,8 @@ if (!gotLock) {
     // 窗口先出，重同步与 hooks 恢复随后跑（不阻塞首屏）
     void claudeData.start().catch((err) => console.error('[claude-sync] 启动失败', err))
     void hooks.init().catch((err) => console.error('[hooks] 启动恢复失败', err))
+    indexer.start()
+    void everything.detect().catch((err) => console.error('[everything] 检测失败', err))
 
     // 应用索引：启动 5s 后补扫（首启/超 24h），此后每 24h 刷新（§7.3 刷新策略）
     const SCAN_INTERVAL = 24 * 3_600_000

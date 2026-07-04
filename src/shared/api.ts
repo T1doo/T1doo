@@ -22,6 +22,16 @@ import type {
   TerminalInfo,
   TerminalProfile
 } from './terminals'
+import type {
+  EverythingState,
+  FileHit,
+  FileMetaPatch,
+  FileSearchOptions,
+  FileSessionRef,
+  FilesIndexProgress,
+  FilesState,
+  SessionFileActivity
+} from './files'
 
 /** Dashboard 用量聚合（token 数口径，不折算美元——§7.6） */
 export interface UsageStats {
@@ -34,7 +44,7 @@ export interface UsageStats {
 }
 
 export interface NavigateRequest {
-  page: 'dashboard' | 'sessions' | 'terminals' | 'settings'
+  page: 'dashboard' | 'sessions' | 'terminals' | 'files' | 'settings'
   terminalId?: string
   sessionId?: string
 }
@@ -107,6 +117,32 @@ export interface T1dooApi {
     rescanApps(): Promise<number>
     onShow(cb: () => void): () => void
     onState(cb: (state: LauncherState) => void): () => void
+  }
+  files: {
+    search(q: string, opts?: FileSearchOptions): Promise<FileHit[]>
+    /** 最近被会话修改的文件流（F4 第零层） */
+    activity(limit?: number): Promise<SessionFileActivity[]>
+    /** 反查：这个文件被哪些会话动过 */
+    sessionsFor(path: string): Promise<FileSessionRef[]>
+    pinned(): Promise<FileHit[]>
+    recentOpened(limit?: number): Promise<FileHit[]>
+    getState(): Promise<FilesState>
+    /** 弹目录选择框并加入订阅；用户取消返回 null */
+    addDir(): Promise<FilesState | null>
+    removeDir(id: number): Promise<FilesState>
+    setDirEnabled(id: number, enabled: boolean): Promise<FilesState>
+    /** 手动重扫（缺省全部启用目录） */
+    rescan(dirId?: number): Promise<void>
+    setMeta(path: string, patch: FileMetaPatch): Promise<void>
+    /** 默认应用打开（同时记录最近打开） */
+    open(path: string): Promise<string>
+    reveal(path: string): Promise<void>
+    copyPath(path: string): Promise<void>
+    /** 在文件所在目录开内置 shell 终端 */
+    openTerminal(path: string): Promise<TerminalInfo>
+    detectEverything(): Promise<EverythingState>
+    onIndexProgress(cb: (p: FilesIndexProgress) => void): () => void
+    onUpdated(cb: () => void): () => void
   }
   nav: {
     onNavigate(cb: (req: NavigateRequest) => void): () => void

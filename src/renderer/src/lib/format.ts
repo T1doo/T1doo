@@ -24,9 +24,23 @@ export function formatTokens(n: number): string {
   return String(n)
 }
 
+export function formatBytes(n: number | null): string {
+  if (n == null) return ''
+  if (n >= 1_073_741_824) return `${(n / 1_073_741_824).toFixed(1)} GB`
+  if (n >= 1_048_576) return `${(n / 1_048_576).toFixed(1)} MB`
+  if (n >= 1_024) return `${(n / 1_024).toFixed(1)} KB`
+  return `${n} B`
+}
+
 /** 项目路径 → 短名（尾目录名） */
 export function projectShortName(path: string | null): string {
   if (!path) return '(未知项目)'
   const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/)
   return parts[parts.length - 1] || path
+}
+
+/** 文件路径 → 所在目录 */
+export function dirOf(path: string): string {
+  const i = Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/'))
+  return i > 0 ? path.slice(0, i) : path
 }

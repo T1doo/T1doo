@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { AppSettings, ThemeSetting } from '@shared/types'
 import BackendProfilesSection from '../components/settings/BackendProfilesSection'
+import FilesSection from '../components/settings/FilesSection'
 import HooksSection from '../components/settings/HooksSection'
 import LauncherSection from '../components/settings/LauncherSection'
 
@@ -96,6 +97,7 @@ function SettingsPage(): React.JSX.Element {
         </section>
 
         <LauncherSection />
+        <FilesSection settings={settings} onUpdate={update} />
         <HooksSection />
         <BackendProfilesSection />
       </div>

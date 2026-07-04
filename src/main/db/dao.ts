@@ -376,3 +376,13 @@ export function toFtsQuery(input: string): string {
   if (terms.length === 0) return ''
   return terms.map((t) => (CJK_TEST_RE.test(t) ? `"${segmentCjkForFts(t)}"` : `"${t}"`)).join(' ')
 }
+
+/** 文件名检索变体：ASCII 词加前缀通配（输入 pty 命中 pty-manager），CJK 词同 toFtsQuery */
+export function toFtsPrefixQuery(input: string): string {
+  const terms = input
+    .split(/\s+/)
+    .map((t) => t.replace(/"/g, '').trim())
+    .filter(Boolean)
+  if (terms.length === 0) return ''
+  return terms.map((t) => (CJK_TEST_RE.test(t) ? `"${segmentCjkForFts(t)}"` : `"${t}"*`)).join(' ')
+}

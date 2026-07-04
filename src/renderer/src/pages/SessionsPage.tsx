@@ -15,7 +15,12 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced
 }
 
-function SessionsPage(): React.JSX.Element {
+interface SessionsPageProps {
+  /** 外部跳转请求（F4 文件页「跳到会话」等）：seq 变化即打开对应会话 */
+  focusRequest?: { sessionId: string; seq: number } | null
+}
+
+function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
   const queryClient = useQueryClient()
   const [q, setQ] = useState('')
   const debouncedQ = useDebounced(q.trim(), 250)
@@ -62,6 +67,14 @@ function SessionsPage(): React.JSX.Element {
   const select = (id: string, uuid: string | null = null): void => {
     setSelectedId(id)
     setTargetUuid(uuid)
+  }
+
+  // 外部跳转请求：渲染期比对 seq 调整状态（React "adjust state when props change" 模式）
+  const [handledSeq, setHandledSeq] = useState(0)
+  if (focusRequest && focusRequest.seq !== handledSeq) {
+    setHandledSeq(focusRequest.seq)
+    setSelectedId(focusRequest.sessionId)
+    setTargetUuid(null)
   }
 
   return (

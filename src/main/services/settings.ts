@@ -23,6 +23,16 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
   if (typeof patch.launcherSearchUrl === 'string' && /^https?:\/\//.test(patch.launcherSearchUrl)) {
     out.launcherSearchUrl = patch.launcherSearchUrl.trim()
   }
+  if (Array.isArray(patch.filesExcludeDirs)) {
+    out.filesExcludeDirs = [
+      ...new Set(
+        patch.filesExcludeDirs
+          .filter((d): d is string => typeof d === 'string')
+          .map((d) => d.trim())
+          .filter(Boolean)
+      )
+    ].slice(0, 100)
+  }
   return out
 }
 

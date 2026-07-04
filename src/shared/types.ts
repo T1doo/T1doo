@@ -16,6 +16,8 @@ export interface AppSettings {
   launcherHotkey: string
   /** `? 关键词` 的搜索引擎模板，{query} 占位（§7.3 路由表） */
   launcherSearchUrl: string
+  /** F4 索引排除的目录名（精确匹配、不分大小写；改动后自动重扫） */
+  filesExcludeDirs: string[]
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -25,7 +27,21 @@ export const DEFAULT_SETTINGS: AppSettings = {
   closeToTray: true,
   notifyWaiting: true,
   launcherHotkey: 'Alt+Space',
-  launcherSearchUrl: 'https://www.bing.com/search?q={query}'
+  launcherSearchUrl: 'https://www.bing.com/search?q={query}',
+  filesExcludeDirs: [
+    'node_modules',
+    '.git',
+    '.svn',
+    'dist',
+    'out',
+    'build',
+    'target',
+    '.venv',
+    'venv',
+    '__pycache__',
+    '$RECYCLE.BIN',
+    'System Volume Information'
+  ]
 }
 
 export interface AppInfo {

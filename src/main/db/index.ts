@@ -1,8 +1,10 @@
 import Database from 'better-sqlite3'
 import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { dirname } from 'path'
+import { segmentCjkForFts } from './dao'
 import migration001 from './migrations/001_sessions.sql?raw'
 import migration002 from './migrations/002_launcher.sql?raw'
+import migration003 from './migrations/003_files.sql?raw'
 
 interface Migration {
   version: number
@@ -12,7 +14,8 @@ interface Migration {
 
 const MIGRATIONS: Migration[] = [
   { version: 1, name: 'sessions', sql: migration001 },
-  { version: 2, name: 'launcher', sql: migration002 }
+  { version: 2, name: 'launcher', sql: migration002 },
+  { version: 3, name: 'files', sql: migration003 }
 ]
 
 /** 打开（必要时创建）数据库：WAL、外键、按序迁移；升级前自动备份 */
@@ -22,6 +25,8 @@ export function openDatabase(dbPath: string): Database.Database {
   db.pragma('journal_mode = WAL')
   db.pragma('synchronous = NORMAL')
   db.pragma('foreign_keys = ON')
+  // files_fts 触发器依赖：CJK 一元切分（单连接架构，注册一次即全库可用）
+  db.function('seg_cjk', { deterministic: true }, (s) => segmentCjkForFts(String(s ?? '')))
   migrate(db, dbPath)
   return db
 }

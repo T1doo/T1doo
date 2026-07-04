@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DashboardPage from './pages/DashboardPage'
+import FilesPage from './pages/FilesPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import SessionsPage from './pages/SessionsPage'
 import SettingsPage from './pages/SettingsPage'
@@ -17,7 +18,6 @@ const NAV = [
 ] as const
 
 const PLACEHOLDERS: Partial<Record<PageId, { title: string; milestone: string }>> = {
-  files: { title: '文件中枢', milestone: 'M4' },
   chat: { title: 'AI 对话', milestone: 'M5' },
   tasks: { title: '任务队列', milestone: 'M5' }
 }
@@ -25,6 +25,7 @@ const PLACEHOLDERS: Partial<Record<PageId, { title: string; milestone: string }>
 function App(): React.JSX.Element {
   const [page, setPage] = useState<PageId>('dashboard')
   const [focusRequest, setFocusRequest] = useState<{ terminalId: string; seq: number } | null>(null)
+  const [sessionFocus, setSessionFocus] = useState<{ sessionId: string; seq: number } | null>(null)
   const seqRef = useRef(0)
 
   const goTerminal = useCallback((terminalId?: string) => {
@@ -35,15 +36,25 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  const nav = useMemo<AppNav>(() => ({ goPage: setPage, goTerminal }), [goTerminal])
+  const goSession = useCallback((sessionId: string) => {
+    setPage('sessions')
+    seqRef.current += 1
+    setSessionFocus({ sessionId, seq: seqRef.current })
+  }, [])
+
+  const nav = useMemo<AppNav>(
+    () => ({ goPage: setPage, goTerminal, goSession }),
+    [goTerminal, goSession]
+  )
 
   // 主进程要求跳转（系统通知点击等）
   useEffect(() => {
     return window.t1doo.nav.onNavigate((req) => {
       if (req.page === 'terminals') goTerminal(req.terminalId)
+      else if (req.page === 'sessions' && req.sessionId) goSession(req.sessionId)
       else setPage(req.page)
     })
-  }, [goTerminal])
+  }, [goTerminal, goSession])
 
   const placeholder = PLACEHOLDERS[page]
 
@@ -75,7 +86,8 @@ function App(): React.JSX.Element {
 
         <main className="min-w-0 flex-1 overflow-auto">
           {page === 'dashboard' && <DashboardPage />}
-          {page === 'sessions' && <SessionsPage />}
+          {page === 'sessions' && <SessionsPage focusRequest={sessionFocus} />}
+          {page === 'files' && <FilesPage />}
           {page === 'settings' && <SettingsPage />}
           {/* 终端页常驻挂载：xterm 实例与滚动状态跨页面切换保留（§7.2.1 回放仅首挂载） */}
           <TerminalsPage visible={page === 'terminals'} focusRequest={focusRequest} />
