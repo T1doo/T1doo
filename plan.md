@@ -1,6 +1,6 @@
 # T1doo — 电脑 AI 统一调度中心 · 开发计划
 
-> **文档状态**：v1.1（2026-07-04 实测补强：CLI 关键行为 / JSONL 格式 / hooks / 后端环境变量已逐项验证，详见 §14.2 与附录 A.6；可启动 M0）
+> **文档状态**：v1.2（2026-07-04：**F4 文件中枢裁撤出 v1，M4 取消，工期 14→12 周**，见 §7.4 / §9 / §14.2；此前 v1.1 实测补强：CLI 关键行为 / JSONL 格式 / hooks / 后端环境变量已逐项验证，详见 §14.2 与附录 A.6）
 > **创建日期**：2026-07-03 · **升级 v1.0**：2026-07-03 · **升级 v1.1**：2026-07-04
 > **目标平台**：Windows 10 1809+ / Windows 11（开发机：Windows 11 Home，已验证）
 > **本文档用法**：这是一份"活文档"。每个里程碑完成后回来勾选验收项、修订偏差；技术决策变更时在 §14 决策日志中追加记录，不要直接删除历史结论。
@@ -41,7 +41,7 @@
 | P1 | Claude Code 的历史对话以 JSONL 埋在 `~/.claude/projects/` 里，跨项目回看、全文搜索、导出分享都很困难 | 会话中心：自动索引全部历史会话，全文搜索、可视化回放、一键恢复/导出 |
 | P2 | 多个项目同时跑 Claude Code 要开一堆终端窗口，哪个在干活、哪个在等确认、哪个卡住了完全靠肉眼轮询 | 内置多终端管理器 + 实时状态感知（工作中 / 等待输入 / 空闲），聚合到一个 Dashboard |
 | P3 | 打开文件、启动应用、访问网页、问 AI 一句话——每件事都要切换不同入口 | 全局热键唤起的统一启动器（Launcher），一个输入框分发所有意图 |
-| P4 | 常用文件散落各处，"上周 Claude 改过的那个文件在哪"无从查起 | 文件中枢：目录订阅索引 + 最近/收藏/标签，并与会话记录联动 |
+| P4 | 常用文件散落各处，"上周 Claude 改过的那个文件在哪"无从查起 | ~~文件中枢：目录订阅索引 + 最近/收藏/标签，并与会话记录联动~~ **2026-07-04 裁撤出 v1（§7.4 / §14.2）**；联动数据仍随 M1 采集，UI 移入 v1.1+ |
 | P5 | 想快速问 AI 一个问题还要打开浏览器或新开终端 | 内置 AI 对话面板，复用 Claude Code 登录态或 API Key，即开即问 |
 
 ### 1.3 核心价值主张
@@ -55,7 +55,8 @@
 > 划定边界是"可行严谨"的前提。以下内容 v1.0 **不做**，避免范围失控：
 
 - ❌ 不做 macOS / Linux 版本（技术栈保留可能性，但不投入适配与测试）
-- ❌ 不自研"全盘 Everything 级"文件索引引擎（用"目录订阅 + Everything 集成"替代，见 §7.4）
+- ❌ 不自研"全盘 Everything 级"文件索引引擎（~~用"目录订阅 + Everything 集成"替代~~，见 §7.4）
+- ❌ **v1 不做文件中枢（F4 整体，2026-07-04 裁撤）**：连"目录订阅索引"这层也不做——自建重索引与轻量常驻工具的定位冲突（M4 验收压测中开发机整机卡顿、风扇满载实证），通用文件搜索彻底交给 Everything 本体；「会话-文件联动」数据（`session_files`）继续随 M1 零成本采集，F4 UI 移入 v1.1+ backlog（§7.4 / §14.2）
 - ❌ 不与 Raycast / PowerToys Run / Everything / Listary 拼"通用启动器 / 文件管理器"——**F3 启动器、F4 文件中枢定位为"Claude Code 工作流的入口"**：秒跳项目/会话/终端/提示词、会话-文件联动为核心；通用应用启动与文件搜索只做"够用"层（见 §7.3 / §7.4）
 - ❌ 不做云同步、多设备、账号体系
 - ❌ 不做插件市场（内部预留扩展点即可）
@@ -79,7 +80,7 @@
 | U3 | 我能在 T1doo 内同时开多个 Claude Code 终端（不同项目、不同模型/权限配置），像浏览器标签页一样切换 | F2 |
 | U4 | 任何一个会话进入"等待我确认/输入"状态时，我能（hooks 开启时 3 秒内）通过角标和系统通知知道，不用逐个窗口翻 | F2+F6 |
 | U5 | 我在任何应用里按下 `Alt+Space`，输入几个字母就能启动应用、打开最近文件、打开网址、或直接问 AI 一个问题 | F3 |
-| U6 | 我能订阅几个常用目录（项目区、下载区、文档区），按文件名秒搜，并看到"最近打开/最近被会话修改"的文件流 | F4 |
+| U6 | ~~我能订阅几个常用目录（项目区、下载区、文档区），按文件名秒搜，并看到"最近打开/最近被会话修改"的文件流~~（2026-07-04 随 F4 裁撤出 v1，v1.1+ 再议） | ~~F4~~ |
 | U7 | 我能在侧边栏随时发起一段 AI 对话（走我的 Claude 订阅或 API Key），对话记录保存在本地可搜索 | F5 |
 | U8 | 我能把一个写好的任务描述丢进队列，T1doo 派发给无头 Claude Code 在后台执行，完成后通知我并展示结果 | F5 |
 | U9 | 我打开 T1doo 首页，一眼看到：活跃会话及状态、今日 token 消耗、最近文件、待办任务 | F6 |
@@ -110,10 +111,10 @@
 | | 应用启动（.lnk+UWP,"够用"层不追平 Raycast）、文件/URL 打开 | Must | M3 |
 | | 快捷 AI 提问（结果落入 F5 对话） | Should | M3/M5 |
 | | frecency 排序、自定义关键词别名 | Should | M3 |
-| **F4 文件中枢（CC 工作流入口）** | **会话-文件联动:文件被哪些会话动过 / 最近被会话改的文件流** | Must | M4（数据 M1 采集） |
-| | 目录订阅索引 + 实时增量 | Must | M4 |
-| | 文件名秒搜、类型/时间筛选、最近/收藏/标签、右键操作 | Must | M4 |
-| | Everything 集成（"够用"层,检测到则可选全盘搜索） | Should | M4 |
+| **F4 文件中枢** 🛑 2026-07-04 整体裁撤出 v1（§14.2） | 会话-文件联动 UI（**数据仍随 M1 采集入 `session_files`**） | ~~Must~~ Won't(v1) | v1.1+ backlog |
+| | 目录订阅索引 + 实时增量 | ~~Must~~ Won't(v1) | v1.1+ backlog |
+| | 文件名秒搜、类型/时间筛选、最近/收藏/标签、右键操作 | ~~Must~~ Won't(v1) | v1.1+ backlog |
+| | Everything 集成（es.exe 桥接已实测可行后随整体裁撤） | ~~Should~~ Won't(v1) | v1.1+ backlog |
 | **F5 AI 能力** | 内置对话面板（流式、Markdown、代码高亮） | Must | M5 |
 | | 双引擎：`claude` CLI 无头模式（复用登录态/后端档案）/ Anthropic API 直连（v1 仅 Claude） | Must | M5 |
 | | 本地对话历史存储与搜索 | Must | M5 |
@@ -121,7 +122,7 @@
 | | 多供应商适配（OpenAI 兼容端点等） | Could | v1.1+ |
 | **F6 指挥台** | Dashboard 首页（活跃会话/用量/最近文件/任务） | Must | M2 起逐步充实 |
 | | 系统托盘、开机自启（可选）、单实例 | Must | M0 |
-| **F7 设置 / 首启** | 首启引导；设置页（hooks 开关、后端档案、订阅目录、热键、API Key、主题、语言） | Must | M0 起逐步充实 |
+| **F7 设置 / 首启** | 首启引导；设置页（hooks 开关、后端档案、~~订阅目录~~、热键、API Key、主题、语言） | Must | M0 起逐步充实 |
 
 ---
 
@@ -201,6 +202,8 @@
 └────────────────────────────────────────────────────┘  └────────────────────────────┘
 ```
 
+> ⚠️ 2026-07-04：图中 **IndexerService**（订阅目录扫描 / chokidar 增量 / Everything 桥）随 F4 裁撤出 v1（§14.2），v1 不实现；会话-文件联动数据由 ClaudeDataService 解析 JSONL 时顺带采集，与文件系统扫描无关。
+
 架构原则：
 
 1. **所有系统能力只在主进程**。渲染进程 `contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`，只能通过 preload 暴露的白名单 API 通信。
@@ -220,12 +223,12 @@
 'terminals:write'      (id, data: string) => void
 'terminals:resize'     (id, cols, rows) => void
 'terminals:dispose'    (id) => void
-'files:search'         (q: string, opts) => FileHit[]
+'files:search'         (q: string, opts) => FileHit[]      // 2026-07-04 随 F4 裁撤出 v1
 'launcher:query'       (q: string) => LauncherItem[]
 'launcher:execute'     (item: LauncherItem) => void
 'ai:chat:send'         (convId, msg, engine) => void          // 结果走事件流
 'tasks:enqueue'        (spec: TaskSpec) => TaskId
-'sessions:files'       (path: string) => SessionRef[]        // F4 联动：动过此文件的会话
+'sessions:files'       (path: string) => SessionRef[]        // F4 联动反查（数据在采，UI 随 F4 移 v1.1+）
 'backend:profiles'     (op: 'list'|'save'|'remove'|'test', p?) => BackendProfile[] | TestResult
 'settings:get/set'     ...
 
@@ -336,7 +339,8 @@ CREATE TABLE session_files (
 CREATE INDEX idx_session_files_path ON session_files(path);
 CREATE INDEX idx_session_files_session ON session_files(session_id);
 
--- 文件索引（F4）
+-- 文件索引（F4）⚠️ 2026-07-04 随 F4 裁撤出 v1：watched_dirs/files/files_fts 不建；
+-- 上方 session_files（会话-文件联动）保留，继续随 M1 同步采集
 CREATE TABLE watched_dirs (id INTEGER PRIMARY KEY, path TEXT UNIQUE, enabled INTEGER);
 CREATE TABLE files (
   id INTEGER PRIMARY KEY, dir_id INTEGER, path TEXT UNIQUE, name TEXT,
@@ -502,7 +506,7 @@ interface BackendProfile {
 
 | 输入形态 | 路由 | 实现 |
 |---------|------|------|
-| 普通词 | **项目 → 会话标题 → 运行中终端 → 最近提示词** → 应用 → 文件 混排 | CC 源优先，各源 top-N 按 frecency 归并 |
+| 普通词 | **项目 → 会话标题 → 运行中终端 → 最近提示词** → 应用 → ~~文件~~ 混排（文件源随 F4 裁撤，v1 仅绝对路径直开） | CC 源优先，各源 top-N 按 frecency 归并 |
 | `> 指令` | T1doo 内部命令（新建终端/恢复会话/打开设置…） | 命令注册表 |
 | `@ 问题` | 快捷 AI 提问 | 转 F5 对话（M5 接通） |
 | `http(s)://` 或域名形态 | 打开浏览器 | `shell.openExternal` |
@@ -519,6 +523,8 @@ interface BackendProfile {
 - **匹配与排序**：前缀/子串/首字母（拼音首字母 Could 级）匹配 + frecency 得分（`score = Σ 权重(操作) × 时间衰减`，参考 zoxide 算法）。
 
 ### 7.4 F4 · 文件中枢（Claude Code 工作流入口）
+
+> **🛑 已裁撤出 v1.0（2026-07-04，详见 §14.2 决策日志）**：M4 当日已完整实现并通过全部量化验收（实现存档于 `feat/m4-files` 分支，未合并），但验收压测让"自建重索引"路线与 T1doo **轻量常驻工具**定位的冲突暴露无遗——开发机整机卡顿、风扇满载；而通用文件名搜索 Everything 本体已是天花板，自建订阅索引的边际价值撑不起它的资源与维护成本。**会话-文件联动数据（`session_files`）继续随 M1 会话同步零成本采集**（解析 JSONL 顺带提取，不碰文件系统），F4 整体移入 v1.1+ backlog——复活时直接从存档分支起步。以下原方案全文保留备查。
 
 > **定位收敛**（2026-07-03）：F4 的杀手锏不是和 Everything 拼全盘搜索，而是**把文件和你的 CC 工作绑起来**。订阅目录搜索是支撑层，不是卖点。
 
@@ -577,7 +583,7 @@ interface BackendProfile {
 
 ### 7.6 F6 · 指挥台 Dashboard
 
-聚合只读视图（数据全部来自既有表，无新采集）：活跃终端/会话状态卡片、今日/本周 token 消耗曲线（按 assistant 消息 usage 聚合）、等待确认的会话置顶提醒、最近文件、运行中任务。作为默认首页。
+聚合只读视图（数据全部来自既有表，无新采集）：活跃终端/会话状态卡片、今日/本周 token 消耗曲线（按 assistant 消息 usage 聚合）、等待确认的会话置顶提醒、最近文件（口径=最近被会话修改，取自 `session_files`，与已裁撤的文件索引无关）、运行中任务。作为默认首页。
 
 **成本口径**：token 数始终展示；**折算美元金额仅对"API 引擎 + 已知 Anthropic 定价的模型"显示**。订阅态会话（含 Max）与自定义/第三方后端不套用 Anthropic 单价，只显示 token 数并标注"订阅内 / 自定义后端"，避免误导。补充（2026-07-04 实测）：`claude -p` 的 result 事件自带 `total_cost_usd` 与分模型 `modelUsage`——API Key 计费的 cli 任务可直接采信该值；订阅态下该数字仅为名义值，仍按上述口径只展示 token。
 
@@ -596,7 +602,7 @@ interface BackendProfile {
 
 ## 9. 里程碑与迭代计划
 
-> 工期假设：单人开发 + AI 辅助，每周有效投入 ≈ 20h。总计 **14 周（约 3.5 个月）到 v1.0**。每个里程碑结束时产出可运行、可日常使用的版本（打 tag）。
+> 工期假设：单人开发 + AI 辅助，每周有效投入 ≈ 20h。总计 ~~14 周（约 3.5 个月）~~ **12 周（约 3 个月）到 v1.0**（2026-07-04 起：M4 文件中枢裁撤，M5/M6 前移两周）。每个里程碑结束时产出可运行、可日常使用的版本（打 tag）。
 
 | 里程碑 | 周期 | 交付内容 | 验收标准（可测量） |
 |--------|------|---------|-------------------|
@@ -604,9 +610,9 @@ interface BackendProfile {
 | **M1 会话中心** ✅ 2026-07-04 | 第 2-3 周 | JSONL 发现/容错解析/全量+增量同步；SQLite+FTS5；**解析时顺带采集 tool_use 文件路径 → session_files（供 F4 联动）**；会话列表/搜索/详情回放；外部终端恢复；导出 md/json；fixtures 回归测试 | ① ✅ 271 会话/19k 消息/2993 条文件联动入库，E2E 抽查 10 个会话渲染零报错；② ✅ 冷同步 291MB/271 文件 = 4.6s，增量感知 323ms（含 300ms 防抖，半行容错实测）；③ ✅ 19k 消息搜索 <3ms（10 万级余量充足）；④ 恢复按钮按 A.4 实测命令实现，**拉起 wt 续聊留手动点验**（自动测试会真实消耗额度）；⑤ ✅ fixtures 15 项单测全绿（坏行/未知类型/半行/CJK 切分） |
 | **M2 内置终端** ✅ 2026-07-04 | 第 4-6 周 | node-pty+xterm 多标签/分屏；Profile 启动；**后端档案（订阅态 + 自定义后端 baseURL/token/模型 注入，token 走 safeStorage）**；`--session-id` 绑定 + 兜底关联；hooks 状态感知（含设置页开关、注册/还原）；状态角标+系统通知；Dashboard 初版 | ① ✅ E2E 同开 6 终端并发回显全通过（`scripts/e2e-terminal.cjs`）；② ✅ E2E 状态流转断言 400ms 内通过（hooks 链路含 401 拒绝/SessionStart 绑定校正）；③ ✅ hooks 开→关 settings.json 与原文件深度相等（含用户既有 hooks/permissions 保留，单测+E2E 双覆盖）；④ 恢复默认走内置终端并绑定（--resume 直绑，单测覆盖），**真实拉起 claude 续聊留手动点验**（同 M1 口径，避免耗额度）；⑤ ✅ E2E 退出后 tasklist 验证 pty 进程消亡（taskkill /T 兜底）；⑥ token DPAPI 密文落盘 + 明文不出主进程 ✅ E2E；**真实第三方后端连通留手动点验** |
 | **M3 启动器（CC 入口）** ✅ 2026-07-04 | 第 7-8 周 | 全局热键唤起窗；**CC 对象秒跳（项目/会话/终端/最近提示词，优先级最高）**；应用扫描（.lnk+UWP,够用层）+ 图标缓存；文件/URL/内部命令路由；frecency 排序 | ① ✅ 窗口预创建 + show/hide 复用（E2E `scripts/e2e-launcher.cjs`），**真实热键唤起体感留手动点验**；② ✅ E2E 实测查询 IPC 往返 0.6ms（<50ms 余量充足）；③ ✅ E2E 项目/会话/提示词条目命中 + 「> 设置」执行跳转主窗，**真实拉起 claude 新建/恢复留手动点验**（同 M1/M2 口径，避免耗额度）；④ ✅ 本机实测扫描 169 应用（116 win32 + 53 UWP，1.5s，中文名正常），**抽查 20 个启动留手动点验**；⑤ ✅ 注册失败状态暴露 + 设置页热键录制改绑（真实冲突场景留手动）。另：5 个单测文件（路由/匹配/frecency/扫描解析/提示词解析）+ M1/M2 E2E 回归全绿 |
-| **M4 文件中枢（CC 入口）** | 第 9-10 周 | **会话-文件联动 UI（文件↔会话反查、最近被会话改的文件流；数据 M1 已采集）**；订阅目录索引（Worker+chokidar）+ FTS5；文件页（搜索/筛选/最近/收藏/标签/右键"跳到会话"）；Everything 检测与集成 | ① **任选一个被会话改过的文件，能列出动过它的会话并跳转**；② 10 万文件全量索引 < 60s，索引期间 UI 不卡；③ 新建/改名文件 2s 内可搜到；④ 装有 Everything 时全盘搜索生效且标注来源；⑤ 索引 DB 体积 10 万文件 < 50MB |
-| **M5 AI 能力** | 第 11-12 周 | 对话面板（流式/Markdown/高亮/历史落库可搜）；双引擎（cli 默认 + api 可配，Key 走 safeStorage）；启动器 `@` 提问接通；任务队列最小闭环 | ① 两种引擎均可流式对话且断网/无 Key 等异常有明确提示；② Key 在磁盘上不可见明文（验证 DPAPI 密文）；③ 任务：提交 → 后台执行 → 通知 → 可查看输出与对应会话全程走通；④ 对话历史可全文搜索 |
-| **M6 打磨发布** | 第 13-14 周 | 性能与内存审计（§10.3 预算达标）；i18n 补全；首启引导；NSIS+portable 打包；electron-updater（GitHub Releases）；README/使用文档 | ① 冷启动到 Dashboard 可交互 < 3s；② 常驻内存（1 终端+托盘）< 350MB；③ 安装→使用→自动更新→卸载全流程在干净虚拟机验证通过；④ v1.0.0 tag + Release 产物 |
+| **M4 文件中枢** 🛑 已裁撤（2026-07-04） | ~~第 9-10 周~~ | 当日已完整实现（订阅目录索引 Worker+chokidar+FTS5 / 联动 UI / Everything 桥 / 文件页与设置区块 / 15 项单测 / E2E 全绿）并通过验收①-⑤ 后整体裁撤：量化数据与动因见 §14.2；代码单提交存档于 `feat/m4-files` 分支（不合并、不删除） | —（会话-文件联动数据继续随 M1 采集；F4 移入 v1.1+ backlog） |
+| **M5 AI 能力** | 第 9-10 周（原 11-12） | 对话面板（流式/Markdown/高亮/历史落库可搜）；双引擎（cli 默认 + api 可配，Key 走 safeStorage）；启动器 `@` 提问接通；任务队列最小闭环 | ① 两种引擎均可流式对话且断网/无 Key 等异常有明确提示；② Key 在磁盘上不可见明文（验证 DPAPI 密文）；③ 任务：提交 → 后台执行 → 通知 → 可查看输出与对应会话全程走通；④ 对话历史可全文搜索 |
+| **M6 打磨发布** | 第 11-12 周（原 13-14） | 性能与内存审计（§10.3 预算达标）；i18n 补全；首启引导；NSIS+portable 打包；electron-updater（GitHub Releases）；README/使用文档；**主窗「文件」占位页降级处理（隐藏或标注 v1.1+）** | ① 冷启动到 Dashboard 可交互 < 3s；② 常驻内存（1 终端+托盘）< 350MB；③ 安装→使用→自动更新→卸载全流程在干净虚拟机验证通过；④ v1.0.0 tag + Release 产物 |
 
 **里程碑间的机动**：每个里程碑预留 15% 时间做上一里程碑的缺陷修复；若 M2 hooks 方案遇阻（Claude Code 行为变更），降级方案（mtime 轮询）保底交付，不阻塞后续里程碑。
 
@@ -635,7 +641,7 @@ interface BackendProfile {
 | 冷启动（到 Dashboard 可交互） | < 3s |
 | 常驻内存（空闲，1 终端） | < 350MB |
 | 启动器唤起 | < 100ms |
-| 搜索（消息 10 万 / 文件 10 万） | < 200ms / < 100ms |
+| 搜索（消息 10 万） | < 200ms（~~文件 10 万 < 100ms~~ 随 F4 裁撤移除） |
 | 安装包体积 | < 150MB |
 | CPU 空闲占用 | < 1%（无监听风暴） |
 
@@ -670,7 +676,7 @@ interface BackendProfile {
 | R8 | `claude -p` 无头模式行为/参数随版本变化 | 低（原"中"，2026-07-04 降级） | 中 | ✅ 2026-07-04 已实测：`--session-id` 新建 / `--resume` 同 id 追加 / `stream-json` 全部可用；`--session-id` 未进官方文档故保留 hooks 校正兜底。引擎抽象隔离；启动前 `claude --version` 探测并留兼容分支；Agent SDK 作为后备通道 |
 | R9 | 中文全文搜索效果不佳（unicode61 按字切分：裸词匹配噪声大） | 中 | 中 | **M1 即评估 `simple` 分词器（中文分词+拼音）**；短语查询语法兜底；注意其为原生扩展、打包需加载 DLL（与 R3 同类） |
 | R10 | 第三方/自定义后端与 Claude Code 兼容性参差（工具调用、`stream-json` 格式、`--session-id` 支持差异） | 中 | 中 | 后端档案标注能力；订阅态为默认与保底；异常时明确提示"该后端不支持 X"；解析层对缺字段容错 |
-| R11 | 开发机未安装 Everything（2026-07-04 实测 `es.exe` 不在 PATH），第二层集成缺乏日常真实验证 | 高 | 低 | M4 开工时先安装 Everything 实测；若验证成本超预期，降级为"仅检测+引导安装"，不做结果合并 |
+| R11 | 开发机未安装 Everything（2026-07-04 实测 `es.exe` 不在 PATH），第二层集成缺乏日常真实验证 | 高 | 低 | ~~M4 开工时先安装 Everything 实测；若验证成本超预期，降级为"仅检测+引导安装"，不做结果合并~~ **2026-07-04 关闭**：已经 winget 装机（`voidtools.Everything` + `voidtools.Everything.Cli`）并实测 es.exe 桥接可行（`-export-txt` UTF-8 中转避 GBK 乱码、`file:` 限定、按修改时间排序，E2E 合并/来源标注全通过）；随后 F4 整体裁撤出 v1（§14.2），本风险失效。开发机保留 Everything 供日常使用 |
 
 ---
 
@@ -717,6 +723,7 @@ interface BackendProfile {
 | 2026-07-04 | **M0 交付偏差**：① React 19 替代计划中的 18（脚手架当前版，生态兼容）；② electron-store 锁 v8——electron-vite 会外部化 dependencies，而 v10+ 纯 ESM 与 CJS 主进程不兼容，主进程迁 ESM 前不升级；③ 主题实现收敛为"主进程 nativeTheme.themeSource + 渲染层 prefers-color-scheme"，零 JS 换肤逻辑；④ pnpm 11 依赖构建脚本审批迁至 pnpm-workspace.yaml `allowBuilds` 键 | M0 实装结论（§4.2/§8） |
 | 2026-07-04 | **R9 裁决（M1 实测）**：unicode61 实为"连续 CJK 单 token"，中文命中率仅 LIKE 基线 ~1/5（"性能" 9 vs 48）→ 落地"CJK 一元切分入索引 + 查询短语化 + snippet 拼回"，命中率追平 LIKE 基线、零原生依赖；`simple` 分词器转 backlog。另修正：FK 级联删除不触发 FTS 触发器，replace 须先显式 DELETE messages | M1 实测数据（§6.2 注释已修正） |
 | 2026-07-04 | **M1 架构落地**：全部 JSONL 解析走 worker_threads（electron-vite `?modulePath`），主线程唯一写库；详情回放按需 worker 解析全文（列表只用 DB 摘要）；messages.content_text 仅服务 FTS（存 CJK 切分形态）；E2E 冒烟用 playwright-core `_electron`（含增量延迟量测脚本 scripts/e2e-*.cjs） | §5.1 原则 3 落实；性能数据见 §9 M1 验收 |
+| 2026-07-04 | **F4 文件中枢整体裁撤出 v1.0，M4 取消，总工期 14→12 周（用户裁决）**。① 处置：M4 当日已完整实现（订阅目录索引 worker+chokidar+FTS5 / 会话-文件联动 UI / Everything es.exe 桥 / 文件页与设置区块 / 15 项单测 / E2E 全绿），量化验收①-⑤全部达标——10 万文件全量索引 19-21s（<60s）、索引 DB 33MB（<50MB，FTS 只索引文件名不索引路径后从 43MB 降下来）、搜索 0.9-53ms（<100ms）、新建/改名 420ms 可搜（<2s）、主线程单批写库峰值 61ms；代码以单提交存档于 `feat/m4-files` 分支，**不合并、不删除**。② 裁撤动因：验收压测（10 万合成文件生成+索引，叠加 Everything 实时索引跟进）令开发机整机卡顿、风扇满载——"自建重索引"与轻量常驻工具定位的冲突有了体感证据；通用文件名搜索 Everything 本体已是天花板，自建订阅索引的边际价值不敌其资源/维护成本（§1.4"不与 Everything 竞争"这次彻底让位）。③ 保留：`session_files` 联动数据继续随 M1 会话同步零成本采集（解析 JSONL 顺带提取，不碰文件系统）；F4 移入 v1.1+ backlog，复活时从存档分支起步；主窗「文件」导航占位页 M6 打磨时降级处理。④ 开发机变更：Everything + es.exe 已 winget 装机，保留供日常使用（`winget uninstall voidtools.Everything voidtools.Everything.Cli` 可移除）。⑤ 压测坑档案（对 M5/M6 直接有用）：Win11 会把后台 shell 启动的进程树打入效率模式（EcoQoS），Electron 主进程的 setTimeout/setImmediate/worker 消息唤醒全部退化到秒级——主进程设计不可依赖定时器/消息往返做节流，压测须先把进程优先级拉回 Normal 再量测；Playwright `waitForFunction` 传 async 谓词会把 pending Promise 当 truthy 直接通过（假阳性），等待条件必须在 Node 侧显式轮询 | 开发机体感 + 定位复盘（§7.4 横幅 / §9 M4 行） |
 
 ---
 
@@ -841,4 +848,4 @@ claude --version
 
 ---
 
-*Plan.md v1.1 · 起草于 2026-07-03，同日据 §14.1 Q1–Q7 裁决升级 v1.0；2026-07-04 经本机无头实测 + 官方文档核对补强为 v1.1（Claude Fable 5）。待核实项已全部清零。下一步：启动 M0 脚手架。*
+*Plan.md v1.2 · 起草于 2026-07-03，同日据 §14.1 Q1–Q7 裁决升级 v1.0；2026-07-04 经本机无头实测 + 官方文档核对补强为 v1.1；同日 M0-M3 全部交付后，F4 文件中枢裁撤出 v1 升级 v1.2（Claude Fable 5）。下一步：M5 AI 能力（第 9-10 周）。*
