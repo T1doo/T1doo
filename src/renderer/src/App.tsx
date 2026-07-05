@@ -1,26 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DashboardPage from './pages/DashboardPage'
-import PlaceholderPage from './pages/PlaceholderPage'
 import SessionsPage from './pages/SessionsPage'
 import SettingsPage from './pages/SettingsPage'
 import TerminalsPage from './pages/TerminalsPage'
 import ChatPage from './pages/ChatPage'
 import TasksPage from './pages/TasksPage'
-import { AppNavContext, type AppNav, type PageId } from './lib/app-nav'
+import { AppNavContext, type AppNav } from './lib/app-nav'
+import type { PageId } from './lib/app-nav'
 
+// F4 文件中枢已彻底废弃（2026-07-05，§14.2）：导航不再保留「文件」入口
 const NAV = [
   { id: 'dashboard', label: '指挥台' },
   { id: 'sessions', label: '会话' },
   { id: 'terminals', label: '终端' },
-  { id: 'files', label: '文件' },
   { id: 'chat', label: '对话' },
   { id: 'tasks', label: '任务' },
   { id: 'settings', label: '设置' }
-] as const
-
-const PLACEHOLDERS: Partial<Record<PageId, { title: string; milestone: string }>> = {
-  files: { title: '文件中枢', milestone: 'v1.1+' }
-}
+] as const satisfies readonly { id: PageId; label: string }[]
 
 function App(): React.JSX.Element {
   const [page, setPage] = useState<PageId>('dashboard')
@@ -66,8 +62,6 @@ function App(): React.JSX.Element {
     })
   }, [goTerminal, goSession, goChat])
 
-  const placeholder = PLACEHOLDERS[page]
-
   return (
     <AppNavContext.Provider value={nav}>
       <div className="flex h-full">
@@ -102,9 +96,6 @@ function App(): React.JSX.Element {
           {page === 'settings' && <SettingsPage />}
           {/* 终端页常驻挂载：xterm 实例与滚动状态跨页面切换保留（§7.2.1 回放仅首挂载） */}
           <TerminalsPage visible={page === 'terminals'} focusRequest={focusRequest} />
-          {placeholder && (
-            <PlaceholderPage title={placeholder.title} milestone={placeholder.milestone} />
-          )}
         </main>
       </div>
     </AppNavContext.Provider>

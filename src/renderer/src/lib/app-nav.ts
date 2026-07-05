@@ -1,7 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export type PageId =
-  'dashboard' | 'sessions' | 'terminals' | 'files' | 'chat' | 'tasks' | 'settings'
+export type PageId = 'dashboard' | 'sessions' | 'terminals' | 'chat' | 'tasks' | 'settings'
 
 export interface AppNav {
   goPage(page: PageId): void
