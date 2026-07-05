@@ -3,6 +3,7 @@ import type { AppSettings, ThemeSetting } from '@shared/types'
 import BackendProfilesSection from '../components/settings/BackendProfilesSection'
 import HooksSection from '../components/settings/HooksSection'
 import LauncherSection from '../components/settings/LauncherSection'
+import AiSection from '../components/settings/AiSection'
 
 const THEME_OPTIONS: { value: ThemeSetting; label: string }[] = [
   { value: 'dark', label: '暗色' },
@@ -93,8 +94,18 @@ function SettingsPage(): React.JSX.Element {
               className="h-4 w-4 accent-[var(--accent)]"
             />
           </label>
+          <label className="flex cursor-pointer items-center justify-between py-1.5">
+            <span>后台任务完成/失败时系统通知</span>
+            <input
+              type="checkbox"
+              checked={settings.notifyTaskDone}
+              onChange={(e) => update({ notifyTaskDone: e.target.checked })}
+              className="h-4 w-4 accent-[var(--accent)]"
+            />
+          </label>
         </section>
 
+        <AiSection />
         <LauncherSection />
         <HooksSection />
         <BackendProfilesSection />
