@@ -36,6 +36,10 @@ export interface LauncherServiceOptions {
   launcherDao: LauncherDao
   terminals: TerminalManager
   prompts: RecentPromptsReader
+  /** F5 对话服务：@ 提问直接发起回合（M5 接通，§7.3 路由表） */
+  chat?: {
+    send(input: { text: string; engine: 'cli' | 'api' }): { convId: string; turnId: string }
+  }
   getSearchUrl: () => string
   effects: LauncherEffects
   log?: (msg: string) => void
@@ -123,22 +127,36 @@ export class LauncherService {
     switch (parsed.intent) {
       case 'command':
         return { intent: 'command', items: this.queryCommands(parsed.query) }
-      case 'ai':
+      case 'ai': {
+        if (!parsed.query) {
+          return {
+            intent: 'ai',
+            items: [
+              {
+                key: 'hint:ai',
+                kind: 'hint',
+                title: '输入 @ 问题 直接发起 AI 对话',
+                subtitle: '回车后转到对话页流式作答（默认 cli 引擎）',
+                icon: null,
+                target: ''
+              }
+            ]
+          }
+        }
         return {
           intent: 'ai',
           items: [
             {
-              key: 'hint:ai',
-              kind: 'hint',
-              title: 'AI 快捷提问将在 M5 接通',
-              subtitle: parsed.query
-                ? `届时可直接提问：${truncate(parsed.query, 40)}`
-                : '输入 @ 问题 直接发起 AI 对话',
+              key: 'ai:ask',
+              kind: 'ai',
+              title: `问 AI：${truncate(parsed.query, 60)}`,
+              subtitle: '发起对话（结果落入 F5 对话页）',
               icon: null,
-              target: ''
+              target: parsed.query
             }
           ]
         }
+      }
       case 'search': {
         if (!parsed.query) return { intent: 'search', items: [] }
         let host = '搜索引擎'
@@ -229,6 +247,17 @@ export class LauncherService {
         const url = this.opts.getSearchUrl().replace('{query}', encodeURIComponent(item.target))
         this.opts.effects.openExternal(url)
         return { ok: true, message: null }
+      }
+      case 'ai': {
+        if (!this.opts.chat) return { ok: false, message: 'AI 对话服务未就绪' }
+        try {
+          // 默认 cli 引擎（订阅态零配置，Q2 裁决）；回车即提交，主窗跳到对话页看流式回答
+          const { convId } = this.opts.chat.send({ text: item.target, engine: 'cli' })
+          this.opts.effects.navigateMain({ page: 'chat', convId })
+          return { ok: true, message: null }
+        } catch (err) {
+          return { ok: false, message: err instanceof Error ? err.message : String(err) }
+        }
       }
       case 'hint':
         return { ok: false, message: null }

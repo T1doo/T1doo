@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { dirname } from 'path'
 import migration001 from './migrations/001_sessions.sql?raw'
 import migration002 from './migrations/002_launcher.sql?raw'
+import migration003 from './migrations/003_ai.sql?raw'
 
 interface Migration {
   version: number
@@ -12,7 +13,8 @@ interface Migration {
 
 const MIGRATIONS: Migration[] = [
   { version: 1, name: 'sessions', sql: migration001 },
-  { version: 2, name: 'launcher', sql: migration002 }
+  { version: 2, name: 'launcher', sql: migration002 },
+  { version: 3, name: 'ai', sql: migration003 }
 ]
 
 /** 打开（必要时创建）数据库：WAL、外键、按序迁移；升级前自动备份 */

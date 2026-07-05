@@ -20,6 +20,14 @@ export function resolveClaudeCommand(): ClaudeCommand {
     if (cached === null) throw claudeNotFound()
     return cached
   }
+  // E2E 测试注入：指向假 claude，避免真实拉起烧额度（与 T1DOO_DB_PATH 等同一隔离体系）
+  const override = process.env.T1DOO_CLAUDE_CMD
+  if (override) {
+    cached = override.toLowerCase().endsWith('.cmd')
+      ? { file: 'cmd.exe', argsPrefix: ['/c', override] }
+      : { file: override, argsPrefix: [] }
+    return cached
+  }
   let lines: string[] = []
   try {
     lines = execFileSync('where.exe', ['claude'], { encoding: 'utf8' })

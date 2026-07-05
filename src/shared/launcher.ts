@@ -11,6 +11,7 @@ export type LauncherItemKind =
   | 'url'
   | 'path'
   | 'search'
+  | 'ai'
   | 'hint'
 
 export interface LauncherItem {
@@ -24,6 +25,7 @@ export interface LauncherItem {
   /**
    * 动作载荷：project=cwd | session=sessionId | terminal=terminalId | prompt=提示词全文
    * app=.lnk 路径或 AppUserModelID | url=完整 URL | path=绝对路径 | search=原始词 | command=命令 id
+   * ai=问题全文（@ 提问，M5 接通）
    */
   target: string
   meta?: {
