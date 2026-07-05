@@ -21,6 +21,7 @@
     "build:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "better-sqlite3": "12.11.1",

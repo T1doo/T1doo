@@ -1,4 +1,4 @@
-import { BrowserWindow, app, clipboard, nativeTheme, shell } from 'electron'
+import { BrowserWindow, Notification, app, clipboard, nativeTheme, shell } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { join } from 'path'
 import { homedir } from 'os'
@@ -15,9 +15,11 @@ import { registerIpcHandlers } from './ipc'
 import { registerSessionsIpc } from './ipc/sessions'
 import { registerTerminalsIpc } from './ipc/terminals'
 import { registerLauncherIpc } from './ipc/launcher'
+import { registerAiIpc } from './ipc/ai'
 import { openDatabase } from './db'
 import { SessionsDao } from './db/dao'
 import { LauncherDao } from './db/launcher-dao'
+import { AiDao } from './db/ai-dao'
 import { ClaudeDataService, defaultProjectsDir } from './services/claude/sync'
 import { BackendProfilesService } from './services/backend/profiles'
 import { TerminalManager } from './services/terminal/manager'
@@ -25,6 +27,9 @@ import { HooksService } from './services/hooks/server'
 import { ClaudeStatusTracker } from './services/hooks/status'
 import { LauncherService } from './services/launcher/service'
 import { RecentPromptsReader } from './services/launcher/prompts'
+import { ChatService } from './services/ai/conversations'
+import { AiApiConfigService } from './services/ai/api-config'
+import { TaskQueue } from './services/ai/task-queue'
 import scanWorkerPath from './services/claude/scan.worker?modulePath'
 
 // 单实例锁：二次启动只聚焦已有窗口
@@ -46,6 +51,8 @@ if (!gotLock) {
   let hooks: HooksService | null = null
   let statusTracker: ClaudeStatusTracker | null = null
   let appScanTimer: NodeJS.Timeout | null = null
+  let chat: ChatService | null = null
+  let taskQueue: TaskQueue | null = null
 
   app.on('second-instance', () => {
     windows.showMainWindow()
@@ -58,6 +65,8 @@ if (!gotLock) {
 
   app.on('will-quit', () => {
     terminals?.disposeAll() // 杀全部 pty 进程树，不留孤儿（验收⑤）
+    chat?.disposeAll() // cli 引擎长连进程
+    taskQueue?.disposeAll() // 运行中无头任务
     hooks?.dispose()
     statusTracker?.dispose()
     shortcut.dispose()
@@ -134,12 +143,44 @@ if (!gotLock) {
       (msg) => console.log('[hooks]', msg)
     )
 
+    // F5 AI 能力：对话双引擎 + 任务队列（§7.5）
+    const aiDao = new AiDao(db)
+    aiDao.failStaleActiveTasks(Date.now()) // 上次异常退出残留的 running/queued → failed
+    const apiConfig = new AiApiConfigService()
+    chat = new ChatService({
+      dao: aiDao,
+      backends,
+      apiConfig,
+      emit: (e) => windows.broadcast(IPC_EVENTS.AiDelta, e),
+      log: (msg) => console.log('[ai-chat]', msg)
+    })
+    taskQueue = new TaskQueue({
+      dao: aiDao,
+      backends,
+      emit: (task) => windows.broadcast(IPC_EVENTS.TaskUpdate, task),
+      notify: (task) => {
+        if (!settings.get().notifyTaskDone || !Notification.isSupported()) return
+        const notification = new Notification({
+          title: task.status === 'done' ? '后台任务完成' : '后台任务失败',
+          body: task.prompt.slice(0, 120),
+          silent: false
+        })
+        notification.on('click', () => {
+          windows.showMainWindow()
+          windows.broadcast(IPC_EVENTS.Navigate, { page: 'tasks' })
+        })
+        notification.show()
+      },
+      log: (msg) => console.log('[ai-tasks]', msg)
+    })
+
     // F3 启动器：服务 + 独立窗口 + 全局热键（§7.3）
     const launcherDao = new LauncherDao(db)
     const launcher = new LauncherService({
       sessionsDao: dao,
       launcherDao,
       terminals,
+      chat,
       prompts: new RecentPromptsReader(
         process.env.T1DOO_CLAUDE_HISTORY ?? join(homedir(), '.claude', 'history.jsonl')
       ),
@@ -195,6 +236,7 @@ if (!gotLock) {
     registerIpcHandlers(settings)
     registerSessionsIpc(dao, claudeData, terminals)
     registerTerminalsIpc({ terminals, backends, hooks, dao })
+    registerAiIpc({ chat, tasks: taskQueue, aiDao, apiConfig })
     registerLauncherIpc({
       service: launcher,
       getState: launcherState,

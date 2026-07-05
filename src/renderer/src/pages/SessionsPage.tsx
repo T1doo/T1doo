@@ -15,7 +15,12 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced
 }
 
-function SessionsPage(): React.JSX.Element {
+interface SessionsPageProps {
+  /** 外部要求展开某会话（任务卡片"查看会话"等）；seq 递增触发 */
+  focusRequest?: { sessionId: string; seq: number } | null
+}
+
+function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
   const queryClient = useQueryClient()
   const [q, setQ] = useState('')
   const debouncedQ = useDebounced(q.trim(), 250)
@@ -24,6 +29,14 @@ function SessionsPage(): React.JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [targetUuid, setTargetUuid] = useState<string | null>(null)
   const [progress, setProgress] = useState<SyncProgress | null>(null)
+
+  // render 期对比 seq 调整选中（react-hooks v7：不在 effect 内同步 setState）
+  const [prevFocusSeq, setPrevFocusSeq] = useState<number | null>(null)
+  if (focusRequest && focusRequest.seq !== prevFocusSeq) {
+    setPrevFocusSeq(focusRequest.seq)
+    setSelectedId(focusRequest.sessionId)
+    setTargetUuid(null)
+  }
 
   const sessionsQuery = useQuery({
     queryKey: ['sessions', projectId ?? null, pinnedOnly],

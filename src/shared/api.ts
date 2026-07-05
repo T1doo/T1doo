@@ -22,6 +22,18 @@ import type {
   TerminalInfo,
   TerminalProfile
 } from './terminals'
+import type {
+  AiApiConfig,
+  AiApiConfigInput,
+  AiDeltaEvent,
+  ChatSearchHit,
+  ChatSendInput,
+  ChatSendResult,
+  ConvMessagesResult,
+  ConversationSummary,
+  TaskInfo,
+  TaskSpec
+} from './ai'
 
 /** Dashboard 用量聚合（token 数口径，不折算美元——§7.6） */
 export interface UsageStats {
@@ -34,9 +46,11 @@ export interface UsageStats {
 }
 
 export interface NavigateRequest {
-  page: 'dashboard' | 'sessions' | 'terminals' | 'settings'
+  page: 'dashboard' | 'sessions' | 'terminals' | 'chat' | 'tasks' | 'settings'
   terminalId?: string
   sessionId?: string
+  /** page='chat' 时聚焦的对话（启动器 @ 提问落点） */
+  convId?: string
 }
 
 /** preload 通过 contextBridge 暴露给渲染层的白名单 API（window.t1doo） */
@@ -107,6 +121,29 @@ export interface T1dooApi {
     rescanApps(): Promise<number>
     onShow(cb: () => void): () => void
     onState(cb: (state: LauncherState) => void): () => void
+  }
+  ai: {
+    /** 发起一个回合（convId 缺省=新建对话）；流式内容走 onDelta */
+    send(input: ChatSendInput): Promise<ChatSendResult>
+    /** 停止某对话正在进行的回合 */
+    stop(convId: string): Promise<void>
+    convList(): Promise<ConversationSummary[]>
+    convMessages(convId: string): Promise<ConvMessagesResult>
+    convDelete(convId: string): Promise<void>
+    /** 对话历史全文搜索（FTS，CJK 切分口径与会话中心一致） */
+    convSearch(q: string): Promise<ChatSearchHit[]>
+    configGet(): Promise<AiApiConfig>
+    configSet(input: AiApiConfigInput): Promise<AiApiConfig>
+    onDelta(cb: (e: AiDeltaEvent) => void): () => void
+  }
+  tasks: {
+    enqueue(spec: TaskSpec): Promise<TaskInfo>
+    list(): Promise<TaskInfo[]>
+    /** 取消排队/运行中的任务 */
+    cancel(id: string): Promise<TaskInfo | null>
+    /** 任务输出全文（运行中=内存缓冲；完成后=落库文本） */
+    output(id: string): Promise<string>
+    onUpdate(cb: (task: TaskInfo) => void): () => void
   }
   nav: {
     onNavigate(cb: (req: NavigateRequest) => void): () => void

@@ -1,30 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DashboardPage from './pages/DashboardPage'
-import PlaceholderPage from './pages/PlaceholderPage'
 import SessionsPage from './pages/SessionsPage'
 import SettingsPage from './pages/SettingsPage'
 import TerminalsPage from './pages/TerminalsPage'
-import { AppNavContext, type AppNav, type PageId } from './lib/app-nav'
+import ChatPage from './pages/ChatPage'
+import TasksPage from './pages/TasksPage'
+import { AppNavContext, type AppNav } from './lib/app-nav'
+import type { PageId } from './lib/app-nav'
 
+// F4 文件中枢已彻底废弃（2026-07-05，§14.2）：导航不再保留「文件」入口
 const NAV = [
   { id: 'dashboard', label: '指挥台' },
   { id: 'sessions', label: '会话' },
   { id: 'terminals', label: '终端' },
-  { id: 'files', label: '文件' },
   { id: 'chat', label: '对话' },
   { id: 'tasks', label: '任务' },
   { id: 'settings', label: '设置' }
-] as const
-
-const PLACEHOLDERS: Partial<Record<PageId, { title: string; milestone: string }>> = {
-  files: { title: '文件中枢', milestone: 'M4' },
-  chat: { title: 'AI 对话', milestone: 'M5' },
-  tasks: { title: '任务队列', milestone: 'M5' }
-}
+] as const satisfies readonly { id: PageId; label: string }[]
 
 function App(): React.JSX.Element {
   const [page, setPage] = useState<PageId>('dashboard')
   const [focusRequest, setFocusRequest] = useState<{ terminalId: string; seq: number } | null>(null)
+  const [sessionFocus, setSessionFocus] = useState<{ sessionId: string; seq: number } | null>(null)
+  const [chatFocus, setChatFocus] = useState<{ convId: string; seq: number } | null>(null)
   const seqRef = useRef(0)
 
   const goTerminal = useCallback((terminalId?: string) => {
@@ -35,17 +33,34 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  const nav = useMemo<AppNav>(() => ({ goPage: setPage, goTerminal }), [goTerminal])
+  const goSession = useCallback((sessionId: string) => {
+    setPage('sessions')
+    seqRef.current += 1
+    setSessionFocus({ sessionId, seq: seqRef.current })
+  }, [])
 
-  // 主进程要求跳转（系统通知点击等）
+  const goChat = useCallback((convId?: string) => {
+    setPage('chat')
+    if (convId) {
+      seqRef.current += 1
+      setChatFocus({ convId, seq: seqRef.current })
+    }
+  }, [])
+
+  const nav = useMemo<AppNav>(
+    () => ({ goPage: setPage, goTerminal, goSession, goChat }),
+    [goTerminal, goSession, goChat]
+  )
+
+  // 主进程要求跳转（系统通知点击 / 启动器 @ 提问等）
   useEffect(() => {
     return window.t1doo.nav.onNavigate((req) => {
       if (req.page === 'terminals') goTerminal(req.terminalId)
+      else if (req.page === 'sessions' && req.sessionId) goSession(req.sessionId)
+      else if (req.page === 'chat') goChat(req.convId)
       else setPage(req.page)
     })
-  }, [goTerminal])
-
-  const placeholder = PLACEHOLDERS[page]
+  }, [goTerminal, goSession, goChat])
 
   return (
     <AppNavContext.Provider value={nav}>
@@ -75,13 +90,12 @@ function App(): React.JSX.Element {
 
         <main className="min-w-0 flex-1 overflow-auto">
           {page === 'dashboard' && <DashboardPage />}
-          {page === 'sessions' && <SessionsPage />}
+          {page === 'sessions' && <SessionsPage focusRequest={sessionFocus} />}
+          {page === 'chat' && <ChatPage focusRequest={chatFocus} />}
+          {page === 'tasks' && <TasksPage />}
           {page === 'settings' && <SettingsPage />}
           {/* 终端页常驻挂载：xterm 实例与滚动状态跨页面切换保留（§7.2.1 回放仅首挂载） */}
           <TerminalsPage visible={page === 'terminals'} focusRequest={focusRequest} />
-          {placeholder && (
-            <PlaceholderPage title={placeholder.title} milestone={placeholder.milestone} />
-          )}
         </main>
       </div>
     </AppNavContext.Provider>

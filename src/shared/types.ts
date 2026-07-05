@@ -12,6 +12,8 @@ export interface AppSettings {
   closeToTray: boolean
   /** 会话等待输入时弹系统通知（§8 默认开启的两类之一） */
   notifyWaiting: boolean
+  /** 后台任务完成/失败时弹系统通知（§8 默认开启的两类之二） */
+  notifyTaskDone: boolean
   /** 启动器全局热键（Electron Accelerator 语法；与 PowerToys Run 冲突时改绑，R5） */
   launcherHotkey: string
   /** `? 关键词` 的搜索引擎模板，{query} 占位（§7.3 路由表） */
@@ -24,6 +26,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoLaunch: false,
   closeToTray: true,
   notifyWaiting: true,
+  notifyTaskDone: true,
   launcherHotkey: 'Alt+Space',
   launcherSearchUrl: 'https://www.bing.com/search?q={query}'
 }

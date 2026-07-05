@@ -6,6 +6,7 @@ import type { AppSettings } from '../shared/types'
 import type { SyncProgress } from '../shared/sessions'
 import type { ClaudeStatusEvent, TerminalInfo } from '../shared/terminals'
 import type { LauncherState } from '../shared/launcher'
+import type { AiDeltaEvent, TaskInfo } from '../shared/ai'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_event: IpcRendererEvent, payload: T): void => cb(payload)
@@ -72,6 +73,24 @@ const api: T1dooApi = {
     rescanApps: () => ipcRenderer.invoke(IPC.LauncherRescanApps),
     onShow: (cb) => subscribe<void>(IPC_EVENTS.LauncherShow, cb),
     onState: (cb) => subscribe<LauncherState>(IPC_EVENTS.LauncherState, cb)
+  },
+  ai: {
+    send: (input) => ipcRenderer.invoke(IPC.AiChatSend, input),
+    stop: (convId) => ipcRenderer.invoke(IPC.AiChatStop, convId),
+    convList: () => ipcRenderer.invoke(IPC.AiConvList),
+    convMessages: (convId) => ipcRenderer.invoke(IPC.AiConvMessages, convId),
+    convDelete: (convId) => ipcRenderer.invoke(IPC.AiConvDelete, convId),
+    convSearch: (q) => ipcRenderer.invoke(IPC.AiConvSearch, q),
+    configGet: () => ipcRenderer.invoke(IPC.AiConfigGet),
+    configSet: (input) => ipcRenderer.invoke(IPC.AiConfigSet, input),
+    onDelta: (cb) => subscribe<AiDeltaEvent>(IPC_EVENTS.AiDelta, cb)
+  },
+  tasks: {
+    enqueue: (spec) => ipcRenderer.invoke(IPC.TasksEnqueue, spec),
+    list: () => ipcRenderer.invoke(IPC.TasksList),
+    cancel: (id) => ipcRenderer.invoke(IPC.TasksCancel, id),
+    output: (id) => ipcRenderer.invoke(IPC.TasksOutput, id),
+    onUpdate: (cb) => subscribe<TaskInfo>(IPC_EVENTS.TaskUpdate, cb)
   },
   nav: {
     onNavigate: (cb) => subscribe<NavigateRequest>(IPC_EVENTS.Navigate, cb)

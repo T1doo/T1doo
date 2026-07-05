@@ -30,7 +30,20 @@ export const IPC = {
   LauncherQuery: 'launcher:query',
   LauncherExecute: 'launcher:execute',
   LauncherGetState: 'launcher:get-state',
-  LauncherRescanApps: 'launcher:rescan-apps'
+  LauncherRescanApps: 'launcher:rescan-apps',
+  // F5 AI 能力（§7.5）
+  AiChatSend: 'ai:chat:send',
+  AiChatStop: 'ai:chat:stop',
+  AiConvList: 'ai:conv:list',
+  AiConvMessages: 'ai:conv:messages',
+  AiConvDelete: 'ai:conv:delete',
+  AiConvSearch: 'ai:conv:search',
+  AiConfigGet: 'ai:config:get',
+  AiConfigSet: 'ai:config:set',
+  TasksEnqueue: 'tasks:enqueue',
+  TasksList: 'tasks:list',
+  TasksCancel: 'tasks:cancel',
+  TasksOutput: 'tasks:output'
 } as const
 
 /** 一发通道（ipcRenderer.send，高频低延迟：键入与resize） */
@@ -55,5 +68,9 @@ export const IPC_EVENTS = {
   /** 启动器窗口即将显示：渲染层清空输入并聚焦 */
   LauncherShow: 'evt:launcher:show',
   /** 启动器运行时状态变化（扫描完成/热键改绑结果） */
-  LauncherState: 'evt:launcher:state'
+  LauncherState: 'evt:launcher:state',
+  /** F5 对话流式事件（delta/done/error，按 convId+turnId 定位） */
+  AiDelta: 'evt:ai:delta',
+  /** F5 任务状态变化（入队/开跑/完成/失败/取消） */
+  TaskUpdate: 'evt:task:update'
 } as const
