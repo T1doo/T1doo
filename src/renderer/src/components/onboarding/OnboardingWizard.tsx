@@ -24,7 +24,7 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
 
   // ② claude 探测 + 索引进度
   const [probe, setProbe] = useState<ClaudeProbeResult | null>(null)
-  const [probing, setProbing] = useState(false)
+  const [probing, setProbing] = useState(true)
   const [progress, setProgress] = useState<SyncProgress | null>(null)
 
   // ③ hooks
@@ -32,13 +32,18 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
   const [hooksError, setHooksError] = useState<string | null>(null)
   const [hooksBusy, setHooksBusy] = useState(false)
 
+  // 初始态即 probing=true：effect 内不同步 setState（react-hooks 规则）
   const runProbe = useCallback(() => {
-    setProbing(true)
     void window.t1doo.app.probeClaude().then((r) => {
       setProbe(r)
       setProbing(false)
     })
   }, [])
+
+  const retryProbe = (): void => {
+    setProbing(true)
+    runProbe()
+  }
 
   useEffect(() => {
     runProbe()
@@ -122,7 +127,7 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
                   </p>
                   <button
                     type="button"
-                    onClick={runProbe}
+                    onClick={retryProbe}
                     className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:text-[var(--accent)]"
                   >
                     {t('common.retry')}
