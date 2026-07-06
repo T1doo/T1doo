@@ -1,4 +1,4 @@
-import type { AppInfo, AppSettings } from './types'
+import type { AppInfo, AppSettings, ClaudeProbeResult } from './types'
 import type {
   ExportFormat,
   ProjectSummary,
@@ -63,6 +63,8 @@ export interface T1dooApi {
   }
   app: {
     info(): Promise<AppInfo>
+    /** 首启引导：探测 claude 命令与版本（5s 超时，不抛错） */
+    probeClaude(): Promise<ClaudeProbeResult>
   }
   sessions: {
     list(filter?: SessionFilter): Promise<SessionSummary[]>

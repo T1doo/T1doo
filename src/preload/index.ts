@@ -24,7 +24,8 @@ const api: T1dooApi = {
     onUpdated: (cb) => subscribe<AppSettings>(IPC_EVENTS.SettingsUpdated, cb)
   },
   app: {
-    info: () => ipcRenderer.invoke(IPC.AppInfo)
+    info: () => ipcRenderer.invoke(IPC.AppInfo),
+    probeClaude: () => ipcRenderer.invoke(IPC.AppProbeClaude)
   },
   sessions: {
     list: (filter) => ipcRenderer.invoke(IPC.SessionsList, filter),

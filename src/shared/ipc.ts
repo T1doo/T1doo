@@ -3,6 +3,8 @@ export const IPC = {
   SettingsGet: 'settings:get',
   SettingsSet: 'settings:set',
   AppInfo: 'app:info',
+  /** 首启引导：探测 claude 可用性与版本 */
+  AppProbeClaude: 'app:probe-claude',
   SessionsList: 'sessions:list',
   SessionsProjects: 'sessions:projects',
   SessionsGet: 'sessions:get',

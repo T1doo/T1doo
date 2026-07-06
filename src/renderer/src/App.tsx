@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { AppSettings } from '@shared/types'
+import OnboardingWizard from './components/onboarding/OnboardingWizard'
 import DashboardPage from './pages/DashboardPage'
 import SessionsPage from './pages/SessionsPage'
 import SettingsPage from './pages/SettingsPage'
@@ -27,6 +29,23 @@ function App(): React.JSX.Element {
   const [sessionFocus, setSessionFocus] = useState<{ sessionId: string; seq: number } | null>(null)
   const [chatFocus, setChatFocus] = useState<{ convId: string; seq: number } | null>(null)
   const seqRef = useRef(0)
+  // 首启引导：onboardingDone=false 时全屏向导覆盖（M6 §8）
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    void window.t1doo.settings.get().then((s) => {
+      if (mounted) setAppSettings(s)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const finishOnboarding = useCallback((goSettings: boolean) => {
+    void window.t1doo.settings.set({ onboardingDone: true }).then(setAppSettings)
+    if (goSettings) setPage('settings')
+  }, [])
 
   const goTerminal = useCallback((terminalId?: string) => {
     setPage('terminals')
@@ -67,6 +86,9 @@ function App(): React.JSX.Element {
 
   return (
     <AppNavContext.Provider value={nav}>
+      {appSettings && !appSettings.onboardingDone && (
+        <OnboardingWizard hotkey={appSettings.launcherHotkey} onDone={finishOnboarding} />
+      )}
       <div className="flex h-full">
         <nav className="flex w-44 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-panel)]">
           <div className="px-4 py-4 text-lg font-semibold tracking-wide text-[var(--accent)]">

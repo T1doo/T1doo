@@ -20,6 +20,8 @@ async function main() {
   mkdirSync(projectsDir, { recursive: true })
   mkdirSync(userData, { recursive: true })
   mkdirSync(taskCwd, { recursive: true })
+  // 跳过首启引导（M6）：否则向导覆盖层挡住页面交互
+  writeFileSync(join(userData, 'settings.json'), JSON.stringify({ onboardingDone: true }))
   writeFileSync(join(tmp, 'claude-settings.json'), '{}')
   writeFileSync(join(tmp, 'history.jsonl'), '')
 

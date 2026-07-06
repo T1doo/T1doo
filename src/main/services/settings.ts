@@ -15,6 +15,7 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
     out.language = patch.language
   }
   if (typeof patch.autoLaunch === 'boolean') out.autoLaunch = patch.autoLaunch
+  if (typeof patch.onboardingDone === 'boolean') out.onboardingDone = patch.onboardingDone
   if (typeof patch.closeToTray === 'boolean') out.closeToTray = patch.closeToTray
   if (typeof patch.notifyWaiting === 'boolean') out.notifyWaiting = patch.notifyWaiting
   if (typeof patch.launcherHotkey === 'string' && patch.launcherHotkey.trim()) {

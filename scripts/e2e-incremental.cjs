@@ -14,6 +14,8 @@ async function main() {
   const slugDir = join(projectsDir, 'E--Demo-ProjectA')
   mkdirSync(slugDir, { recursive: true })
   mkdirSync(join(root, 'user-data'), { recursive: true })
+  // 跳过首启引导（M6）：否则向导覆盖层挡住页面交互
+  writeFileSync(join(root, 'user-data', 'settings.json'), JSON.stringify({ onboardingDone: true }))
   writeFileSync(join(root, 'claude-settings.json'), '{}')
   const sessionFile = join(slugDir, `${SESSION_ID}.jsonl`)
   copyFileSync(

@@ -18,6 +18,8 @@ export interface AppSettings {
   launcherHotkey: string
   /** `? 关键词` 的搜索引擎模板，{query} 占位（§7.3 路由表） */
   launcherSearchUrl: string
+  /** 首启引导已完成/跳过（M6 §8） */
+  onboardingDone: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -28,7 +30,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifyWaiting: true,
   notifyTaskDone: true,
   launcherHotkey: 'Alt+Space',
-  launcherSearchUrl: 'https://www.bing.com/search?q={query}'
+  launcherSearchUrl: 'https://www.bing.com/search?q={query}',
+  onboardingDone: false
+}
+
+/** 首启引导的 claude 探测结果 */
+export interface ClaudeProbeResult {
+  found: boolean
+  /** `claude --version` 输出（found=false 时为 null） */
+  version: string | null
 }
 
 export interface AppInfo {
