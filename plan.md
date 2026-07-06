@@ -587,7 +587,7 @@ interface BackendProfile {
 | **M3 启动器（CC 入口）** ✅ 2026-07-04 | 第 7-8 周 | 全局热键唤起窗；**CC 对象秒跳（项目/会话/终端/最近提示词，优先级最高）**；应用扫描（.lnk+UWP,够用层）+ 图标缓存；文件/URL/内部命令路由；frecency 排序 | ① ✅ 窗口预创建 + show/hide 复用（E2E `scripts/e2e-launcher.cjs`），**真实热键唤起体感留手动点验**；② ✅ E2E 实测查询 IPC 往返 0.6ms（<50ms 余量充足）；③ ✅ E2E 项目/会话/提示词条目命中 + 「> 设置」执行跳转主窗，**真实拉起 claude 新建/恢复留手动点验**（同 M1/M2 口径，避免耗额度）；④ ✅ 本机实测扫描 169 应用（116 win32 + 53 UWP，1.5s，中文名正常），**抽查 20 个启动留手动点验**；⑤ ✅ 注册失败状态暴露 + 设置页热键录制改绑（真实冲突场景留手动）。另：5 个单测文件（路由/匹配/frecency/扫描解析/提示词解析）+ M1/M2 E2E 回归全绿 |
 | **M4 文件中枢** 🛑 已裁撤（2026-07-04），F4 于 2026-07-05 彻底废弃 | ~~第 9-10 周~~ | 当日已完整实现（订阅目录索引 Worker+chokidar+FTS5 / 联动 UI / Everything 桥 / 文件页与设置区块 / 15 项单测 / E2E 全绿）并通过验收①-⑤ 后整体裁撤：量化数据与动因见 §14.2；代码单提交存档于 `feat/m4-files` 分支（不合并、不删除，仅历史参考） | —（会话-文件联动数据继续随 M1 采集；F4 不再实现） |
 | **M5 AI 能力** ✅ 2026-07-05 | 第 9-10 周（原 11-12） | 对话面板（流式/Markdown/高亮/历史落库可搜）；双引擎（cli 默认 + api 可配，Key 走 safeStorage）；启动器 `@` 提问接通；任务队列最小闭环 | ① ✅ cli 引擎流式对话 E2E 全通（`scripts/e2e-ai.cjs`：delta 中间态/Markdown 渲染/多轮长连；假 claude 经 `T1DOO_CLAUDE_CMD` 注入，零额度）；api 引擎无 Key → 明确中文提示 E2E 实测，401/403/404/429/断网各错误码映射为明确提示（`describeApiError`），**真实 API 流式与自定义网关留手动点验**（避免耗费）；② ✅ E2E 读盘断言：`ai-api.json` 仅存 DPAPI 密文（`apiKeyEnc`）、明文 Key 不出现在磁盘、UI 仅显示尾 4 位；③ ✅ 提交 → 并发调度（上限 2）→ result 事件采集（session_id/total_cost_usd/usage/num_turns）→ done → 输出查看 +「查看会话」跳转会话中心，E2E 全程走通；完成/失败系统通知与 M2 同链路（**真实弹窗体感留手动点验**）；④ ✅ 对话历史 FTS 搜索命中 + snippet 高亮（CJK 一元切分与 F1 同口径）。启动器 `@` 提问 → 主窗对话页自动聚焦新对话并流式作答 E2E 通过。另：3 个单测文件 20 项（stream-json 白名单容错/半行、双引擎与任务参数构造、任务状态机含并发/取消/竞争）+ M1-M3 E2E 回归全绿；主窗「文件」板块随 2026-07-05 F4 彻底废弃一并移除（原 M6 占位页降级项就此了结） |
-| **M6 打磨发布** | 第 11-12 周（原 13-14） | 性能与内存审计（§10.3 预算达标）；i18n 补全；首启引导；NSIS+portable 打包；electron-updater（GitHub Releases）；README/使用文档；~~主窗「文件」占位页降级处理~~（已随 2026-07-05 F4 彻底废弃提前移除） | ① 冷启动到 Dashboard 可交互 < 3s；② 常驻内存（1 终端+托盘）< 350MB；③ 安装→使用→自动更新→卸载全流程在干净虚拟机验证通过；④ v1.0.0 tag + Release 产物 |
+| **M6 打磨发布** 🔨 2026-07-07 代码交付 | 第 11-12 周（原 13-14） | 性能与内存审计（§10.3 预算达标）；i18n 补全；首启引导；NSIS+portable 打包；electron-updater（GitHub Releases）；README/使用文档；~~主窗「文件」占位页降级处理~~（已随 2026-07-05 F4 彻底废弃提前移除） | ① ✅ 冷启动实测 0.83–1.18s < 3s（§10.3 六项全达标，`scripts/perf-audit.cjs` 可复跑）；② ✅ 常驻内存 259MB（私有工作集）< 350MB；③ 安装→使用→自动更新→卸载全流程**留干净虚拟机手动验证**（更新链路代码就绪：publish 配置 + latest.yml + 设置页入口，E2E 覆盖 UI 态）；④ v1.0.0 tag + Release **留 PR 合并后执行**（release.yml 流水线就绪）。另：i18n ~300 key 全量抽取 + en 补全（切换往返 E2E 实测）；首启四步向导 E2E 走查通过；89 单测全绿 |
 
 **里程碑间的机动**：每个里程碑预留 15% 时间做上一里程碑的缺陷修复；若 M2 hooks 方案遇阻（Claude Code 行为变更），降级方案（mtime 轮询）保底交付，不阻塞后续里程碑。
 
@@ -611,14 +611,16 @@ interface BackendProfile {
 
 ### 10.3 性能与资源预算（M6 审计基线）
 
-| 指标 | 预算 |
-|------|------|
-| 冷启动（到 Dashboard 可交互） | < 3s |
-| 常驻内存（空闲，1 终端） | < 350MB |
-| 启动器唤起 | < 100ms |
-| 搜索（消息 10 万） | < 200ms（~~文件 10 万 < 100ms~~ 随 F4 裁撤移除） |
-| 安装包体积 | < 150MB |
-| CPU 空闲占用 | < 1%（无监听风暴） |
+> M6 实测（2026-07-07，打包版 dist/win-unpacked + 真实 ~/.claude 数据 262 会话/21,850 消息；`scripts/perf-audit.cjs` 可复跑，量测前把进程树优先级拉回 Normal 避开 EcoQoS）：**六项全部达标** ✅
+
+| 指标 | 预算 | M6 实测 |
+|------|------|---------|
+| 冷启动（到 Dashboard 可交互） | < 3s | 0.83–1.18s ✅ |
+| 常驻内存（空闲，1 终端） | < 350MB | 259MB（私有工作集，任务管理器口径；WorkingSet 合计 686MB 含共享页重复计数仅参考） ✅ |
+| 启动器唤起 | < 100ms | 复用 M3 实测：窗口预创建 show/hide + 查询 IPC 0.6ms（真实热键体感留手动） ✅ |
+| 搜索（消息 10 万） | < 200ms（~~文件 10 万 < 100ms~~ 随 F4 裁撤移除） | 21.8k 消息 0.1–0.4ms（与 M1 口径一致，10 万级余量充足） ✅ |
+| 安装包体积 | < 150MB | Setup 98.6MB / portable zip 137.5MB ✅ |
+| CPU 空闲占用 | < 1%（无监听风暴） | 全机 0.03–0.05%（单核口径 0.9–1.7%） ✅ |
 
 ---
 
@@ -700,6 +702,7 @@ interface BackendProfile {
 | 2026-07-04 | **M1 架构落地**：全部 JSONL 解析走 worker_threads（electron-vite `?modulePath`），主线程唯一写库；详情回放按需 worker 解析全文（列表只用 DB 摘要）；messages.content_text 仅服务 FTS（存 CJK 切分形态）；E2E 冒烟用 playwright-core `_electron`（含增量延迟量测脚本 scripts/e2e-*.cjs） | §5.1 原则 3 落实；性能数据见 §9 M1 验收 |
 | 2026-07-05 | **F4 文件中枢彻底废弃（用户裁决，M5 验收通过后）**：从 v1.1+ backlog 中移除，**以后也不实现**——2026-07-04 的裁撤已证明该方向与产品定位不可调和，backlog 挂着徒增心智负担。处置：① §7.4 原方案全文删除（完整方案与实现仅存 `feat/m4-files` 分支作历史参考）；② 主窗「文件」导航项与占位页从应用中删除（PlaceholderPage 组件一并移除）；③ §6.2 草案中 watched_dirs/files/files_fts 表定义删除；④ **保留** `session_files` 联动数据采集（服务 F6 Dashboard「最近文件」与 F1 会话反查，与文件系统扫描无关）；⑤ Everything 保留为开发机个人工具，与产品无关 | 用户裁决（§1.4/§3/§7.4） |
 | 2026-07-05 | **M5 落地细节**：① `evt:ai:delta` 发送**累计全文**而非增量（渲染层整包替换、天然幂等，切页/慢订阅不丢字；40ms 节流合并降 IPC 压力）；② cli 引擎默认 `--tools ""` 纯问答 + `--no-session-persistence`（面板对话不涌入 F1 会话中心）；进程按对话长连（§7.5.1 裁决落地），意外退出时下一回合重拉新进程（上下文丢失属边角，接受）；③ `conv_fts` 用**独立 FTS5 表**（非 external-content）由 AiDao 显式增删——绕开 M1 在 messages_fts 踩过的手动同步与 FK 级联不触发触发器两个坑；conv_messages.content 存原文供渲染、FTS 存 CJK 切分形态；④ 新增 `T1DOO_CLAUDE_CMD` 测试注入（E2E 假 claude `scripts/fake-claude.cjs` 按 stream-json 协议回放，零额度消耗）——加入 E2E 隔离环境体系；必须用它而非 PATH 前置：resolveClaudeCommand 优先 .exe 会命中真实 claude；⑤ 任务队列 spawn 可注入供单测（状态机 6 项）；result 与 close 事件竞争以先落终态者为准，重复不落库；应用启动时残留 running/queued 任务统一标记失败 | M5 实装结论（§7.5） |
+| 2026-07-07 | **M6 落地细节**：① i18n 自研轻量方案（零依赖）——`src/shared/i18n` 命名空间字典每条 `{zh,en}` 相邻存放，`keyof` 派生 key 联合类型、**en 完整性由 tsc 强制**；渲染层 I18nProvider 订阅 settings 即时切换，主进程模块单例 t()（托盘菜单语言变更时重建）；主进程侧在字符串**生成时**翻译（启动器条目/通知/错误），语言切换后下次生成即生效；日志与注释保持中文不入字典；② 首启引导四步中原「订阅目录」步骤随 F4 废弃删除，替换为语言选择步；`onboardingDone` 落 settings，五个 E2E 脚本预置 userData/settings.json 跳过向导覆盖层；③ 更新策略落地：autoDownload 后台下载 + 用户点「重启并安装」才 quitAndInstall（autoInstallOnAppQuit 兜底）；portable zip 不支持自动更新（NSIS-only），README 注明手动替换；④ 审计口径：常驻内存用**私有工作集**（任务管理器同口径）——WorkingSet64 对 8 进程 Chromium 树重复计共享页（686MB vs 259MB 实测差 2.6 倍）；开发机 %APPDATA% 常驻实例的 WAL 库外部只读打开会报 malformed schema（readonly 无法做 WAL recovery），量测走"隔离索引→干净退出→再读"路径 | M6 实装结论（§8/§10.3/§13） |
 | 2026-07-04 | **F4 文件中枢整体裁撤出 v1.0，M4 取消，总工期 14→12 周（用户裁决）**。① 处置：M4 当日已完整实现（订阅目录索引 worker+chokidar+FTS5 / 会话-文件联动 UI / Everything es.exe 桥 / 文件页与设置区块 / 15 项单测 / E2E 全绿），量化验收①-⑤全部达标——10 万文件全量索引 19-21s（<60s）、索引 DB 33MB（<50MB，FTS 只索引文件名不索引路径后从 43MB 降下来）、搜索 0.9-53ms（<100ms）、新建/改名 420ms 可搜（<2s）、主线程单批写库峰值 61ms；代码以单提交存档于 `feat/m4-files` 分支，**不合并、不删除**。② 裁撤动因：验收压测（10 万合成文件生成+索引，叠加 Everything 实时索引跟进）令开发机整机卡顿、风扇满载——"自建重索引"与轻量常驻工具定位的冲突有了体感证据；通用文件名搜索 Everything 本体已是天花板，自建订阅索引的边际价值不敌其资源/维护成本（§1.4"不与 Everything 竞争"这次彻底让位）。③ 保留：`session_files` 联动数据继续随 M1 会话同步零成本采集（解析 JSONL 顺带提取，不碰文件系统）；F4 移入 v1.1+ backlog，复活时从存档分支起步；主窗「文件」导航占位页 M6 打磨时降级处理。④ 开发机变更：Everything + es.exe 已 winget 装机，保留供日常使用（`winget uninstall voidtools.Everything voidtools.Everything.Cli` 可移除）。⑤ 压测坑档案（对 M5/M6 直接有用）：Win11 会把后台 shell 启动的进程树打入效率模式（EcoQoS），Electron 主进程的 setTimeout/setImmediate/worker 消息唤醒全部退化到秒级——主进程设计不可依赖定时器/消息往返做节流，压测须先把进程优先级拉回 Normal 再量测；Playwright `waitForFunction` 传 async 谓词会把 pending Promise 当 truthy 直接通过（假阳性），等待条件必须在 Node 侧显式轮询 | 开发机体感 + 定位复盘（§7.4 横幅 / §9 M4 行） |
 
 ---
@@ -825,4 +828,4 @@ claude --version
 
 ---
 
-*Plan.md v1.3 · 起草于 2026-07-03，同日据 §14.1 Q1–Q7 裁决升级 v1.0；2026-07-04 经本机无头实测 + 官方文档核对补强为 v1.1；同日 M0-M3 全部交付后，F4 文件中枢裁撤出 v1 升级 v1.2（Claude Fable 5）；2026-07-05 M5 AI 能力交付 + F4 彻底废弃（不再实现）升级 v1.3。下一步：M6 打磨发布（第 11-12 周）。*
+*Plan.md v1.4 · 起草于 2026-07-03，同日据 §14.1 Q1–Q7 裁决升级 v1.0；2026-07-04 经本机无头实测 + 官方文档核对补强为 v1.1；同日 M0-M3 全部交付后，F4 文件中枢裁撤出 v1 升级 v1.2（Claude Fable 5）；2026-07-05 M5 AI 能力交付 + F4 彻底废弃（不再实现）升级 v1.3；2026-07-07 M6 打磨发布代码交付（i18n/首启引导/自动更新/发布流水线/§10.3 审计全达标）升级 v1.4。剩余：干净虚拟机全流程手动验证（验收③）→ v1.0.0 tag + Release（验收④）。*

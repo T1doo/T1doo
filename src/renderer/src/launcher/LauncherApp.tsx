@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LauncherItem, LauncherQueryResult } from '@shared/launcher'
+import type { I18nKey } from '@shared/i18n'
+import { useI18n } from '../lib/i18n'
 
 /** 各 kind 的内置图标（app 有真实图标时优先用真实图标） */
 const KIND_ICONS: Record<string, string> = {
@@ -16,17 +18,17 @@ const KIND_ICONS: Record<string, string> = {
   hint: 'M8 1a7 7 0 1 0 7 7A7 7 0 0 0 8 1zM8 5v4m0 2.5v.5'
 }
 
-const KIND_LABELS: Record<string, string> = {
-  project: '项目',
-  session: '会话',
-  terminal: '终端',
-  prompt: '提示词',
-  app: '应用',
-  command: '命令',
-  url: '网址',
-  path: '路径',
-  search: '搜索',
-  hint: ''
+/** kind 徽标文案 key（hint/ai 无徽标，缺省即不渲染） */
+const KIND_LABEL_KEYS: Partial<Record<string, I18nKey>> = {
+  project: 'launcher.kind.project',
+  session: 'launcher.kind.session',
+  terminal: 'launcher.kind.terminal',
+  prompt: 'launcher.kind.prompt',
+  app: 'launcher.kind.app',
+  command: 'launcher.kind.command',
+  url: 'launcher.kind.url',
+  path: 'launcher.kind.path',
+  search: 'launcher.kind.search'
 }
 
 function KindIcon({ item }: { item: LauncherItem }): React.JSX.Element {
@@ -49,6 +51,7 @@ function KindIcon({ item }: { item: LauncherItem }): React.JSX.Element {
 }
 
 function LauncherApp(): React.JSX.Element {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [result, setResult] = useState<LauncherQueryResult>({ intent: 'mixed', items: [] })
   const [selected, setSelected] = useState(0)
@@ -132,14 +135,16 @@ function LauncherApp(): React.JSX.Element {
             runQuery(e.target.value)
           }}
           onKeyDown={onKeyDown}
-          placeholder="搜索项目 / 会话 / 终端 / 提示词 / 应用…"
+          placeholder={t('launcher.input.placeholder')}
           className="w-full shrink-0 border-b border-[var(--border)] bg-transparent px-4 py-3.5 text-lg outline-none placeholder:text-[var(--fg-muted)]"
           spellCheck={false}
         />
 
         <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto py-1">
           {result.items.length === 0 && query.trim() !== '' && (
-            <div className="px-4 py-6 text-center text-[var(--fg-muted)]">无匹配结果</div>
+            <div className="px-4 py-6 text-center text-[var(--fg-muted)]">
+              {t('launcher.empty.noResults')}
+            </div>
           )}
           {result.items.map((item, i) => (
             <button
@@ -164,9 +169,9 @@ function LauncherApp(): React.JSX.Element {
                   </span>
                 )}
               </span>
-              {KIND_LABELS[item.kind] && (
+              {KIND_LABEL_KEYS[item.kind] && (
                 <span className="shrink-0 rounded bg-[var(--bg)] px-1.5 py-0.5 text-xs text-[var(--fg-muted)]">
-                  {KIND_LABELS[item.kind]}
+                  {t(KIND_LABEL_KEYS[item.kind]!)}
                 </span>
               )}
             </button>
@@ -177,9 +182,9 @@ function LauncherApp(): React.JSX.Element {
           {toast ? (
             <span className="truncate text-[var(--accent)]">{toast}</span>
           ) : (
-            <span>&gt; 命令 · @ AI 提问 · ? 网页搜索 · 直接输入网址或路径</span>
+            <span>{t('launcher.footer.hints')}</span>
           )}
-          <span className="shrink-0 pl-3">↑↓ 选择 · Enter 执行 · Esc 关闭</span>
+          <span className="shrink-0 pl-3">{t('launcher.footer.keys')}</span>
         </div>
       </div>
     </div>

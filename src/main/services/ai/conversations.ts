@@ -11,6 +11,7 @@ import type { BackendProfilesService } from '../backend/profiles'
 import { CliChatEngine } from './engine-cli'
 import { ApiChatEngine } from './engine-api'
 import type { AiApiConfigService } from './api-config'
+import { t } from '../i18n'
 
 /** delta 广播节流窗口：token 级事件按 40ms 合并，降低 IPC 压力 */
 const DELTA_FLUSH_MS = 40
@@ -47,7 +48,7 @@ export class ChatService {
   /** 发起一个回合：立即返回 convId+turnId，内容经 evt:ai:delta 流式送达 */
   send(input: ChatSendInput): ChatSendResult {
     const text = input.text.trim()
-    if (!text) throw new Error('消息不能为空')
+    if (!text) throw new Error(t('err.emptyMessage'))
 
     let convId = input.convId ?? null
     let conv = convId ? this.opts.dao.getConversation(convId) : null
@@ -59,14 +60,13 @@ export class ChatService {
         id: convId,
         title: truncateTitle(text),
         engine,
-        model:
-          input.model?.trim() || (engine === 'api' ? this.opts.apiConfig.get().model : null),
+        model: input.model?.trim() || (engine === 'api' ? this.opts.apiConfig.get().model : null),
         backendProfileId: engine === 'cli' ? (input.backendProfileId ?? null) : null,
         ts: Date.now()
       })
       conv = this.opts.dao.getConversation(convId)!
     }
-    if (this.inFlight.has(conv.id)) throw new Error('该对话已有回合进行中，请先等待或停止')
+    if (this.inFlight.has(conv.id)) throw new Error(t('err.turnInProgressWait'))
 
     this.opts.dao.appendMessage({ convId: conv.id, role: 'user', content: text, ts: Date.now() })
 
@@ -130,7 +130,7 @@ export class ChatService {
       if (engine === 'api') {
         const apiKey = this.opts.apiConfig.resolveKey()
         if (!apiKey) {
-          throw new Error('未配置 API Key：请在「设置 → AI 对话」填入 Anthropic API Key')
+          throw new Error(t('err.apiKeyMissing'))
         }
         outcome = await this.api.send(
           convId,

@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import type { BackendProfileView } from '@shared/backend'
 import type { PermissionMode, TerminalKind, TerminalProfile } from '@shared/terminals'
 import type { ProjectSummary } from '@shared/sessions'
+import type { I18nKey } from '@shared/i18n'
+import { useI18n } from '../../lib/i18n'
 
-const PERMISSION_MODES: { value: PermissionMode; label: string }[] = [
-  { value: 'default', label: 'default（逐项确认）' },
-  { value: 'acceptEdits', label: 'acceptEdits（自动接受编辑）' },
-  { value: 'plan', label: 'plan（规划模式）' },
-  { value: 'dontAsk', label: 'dontAsk' },
-  { value: 'auto', label: 'auto' },
-  { value: 'bypassPermissions', label: 'bypassPermissions（跳过全部确认）' }
+const PERMISSION_MODES: { value: PermissionMode; labelKey: I18nKey }[] = [
+  { value: 'default', labelKey: 'terminals.permMode.default' },
+  { value: 'acceptEdits', labelKey: 'terminals.permMode.acceptEdits' },
+  { value: 'plan', labelKey: 'terminals.permMode.plan' },
+  { value: 'dontAsk', labelKey: 'terminals.permMode.dontAsk' },
+  { value: 'auto', labelKey: 'terminals.permMode.auto' },
+  { value: 'bypassPermissions', labelKey: 'terminals.permMode.bypass' }
 ]
 
 interface Props {
@@ -19,6 +21,7 @@ interface Props {
 
 /** 新建终端对话框（§7.2.2 / §7.2.5）：会话档案 + 后端档案下拉 */
 function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
+  const { t } = useI18n()
   const [kind, setKind] = useState<TerminalKind>('claude')
   const [cwd, setCwd] = useState('')
   const [projects, setProjects] = useState<ProjectSummary[]>([])
@@ -78,13 +81,13 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
         className="w-[520px] rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-lg font-semibold">新建终端</h2>
+        <h2 className="mb-4 text-lg font-semibold">{t('terminals.newTerminal')}</h2>
 
         <div className="mb-4 flex gap-2">
           {(
             [
-              { value: 'claude', label: 'Claude 会话' },
-              { value: 'shell', label: 'PowerShell' }
+              { value: 'claude', labelKey: 'terminals.kind.claude' },
+              { value: 'shell', labelKey: 'terminals.kind.shell' }
             ] as const
           ).map((opt) => (
             <button
@@ -97,12 +100,12 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
                   : 'border-[var(--border)] text-[var(--fg-muted)] hover:text-[var(--fg)]'
               }`}
             >
-              {opt.label}
+              {t(opt.labelKey)}
             </button>
           ))}
         </div>
 
-        <label className="mb-1 block text-sm text-[var(--fg-muted)]">工作目录</label>
+        <label className="mb-1 block text-sm text-[var(--fg-muted)]">{t('terminals.cwd')}</label>
         <div className="mb-4 flex gap-2">
           <input
             value={cwd}
@@ -125,7 +128,7 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
             }}
             className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)]"
           >
-            浏览…
+            {t('terminals.browse')}
           </button>
         </div>
 
@@ -133,7 +136,9 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
           <>
             <div className="mb-4 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-sm text-[var(--fg-muted)]">后端档案</label>
+                <label className="mb-1 block text-sm text-[var(--fg-muted)]">
+                  {t('terminals.backendProfile')}
+                </label>
                 <select
                   value={backendId}
                   onChange={(e) => setBackendId(e.target.value)}
@@ -142,19 +147,20 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
                   {backends.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
-                      {b.auth === 'custom' ? '（自定义后端）' : ''}
+                      {b.auth === 'custom' ? t('terminals.customBackendSuffix') : ''}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm text-[var(--fg-muted)]">
-                  模型 <span className="opacity-60">可选，覆盖档案默认</span>
+                  {t('terminals.model')}{' '}
+                  <span className="opacity-60">{t('terminals.modelHint')}</span>
                 </label>
                 <input
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  placeholder="跟随档案 / CLI 默认"
+                  placeholder={t('terminals.modelPlaceholder')}
                   className="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -162,7 +168,9 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
 
             <div className="mb-4 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-sm text-[var(--fg-muted)]">权限模式</label>
+                <label className="mb-1 block text-sm text-[var(--fg-muted)]">
+                  {t('terminals.permissionMode')}
+                </label>
                 <select
                   value={permissionMode}
                   onChange={(e) => {
@@ -173,19 +181,20 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
                 >
                   {PERMISSION_MODES.map((m) => (
                     <option key={m.value} value={m.value}>
-                      {m.label}
+                      {t(m.labelKey)}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm text-[var(--fg-muted)]">
-                  会话名 <span className="opacity-60">可选，-n</span>
+                  {t('terminals.sessionName')}{' '}
+                  <span className="opacity-60">{t('terminals.sessionNameHint')}</span>
                 </label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="标签名与之同步"
+                  placeholder={t('terminals.sessionNamePlaceholder')}
                   className="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -200,9 +209,8 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
                   className="mt-0.5 h-4 w-4 accent-red-500"
                 />
                 <span>
-                  <b className="text-red-500">危险：</b>
-                  bypassPermissions（--dangerously-skip-permissions）将跳过所有工具权限确认， Claude
-                  可以直接执行任意命令与文件修改。我了解风险并确认在此目录启用。
+                  <b className="text-red-500">{t('terminals.bypassDanger')}</b>
+                  {t('terminals.bypassWarning')}
                 </span>
               </label>
             )}
@@ -215,7 +223,7 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
             onClick={onClose}
             className="rounded-md border border-[var(--border)] px-4 py-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)]"
           >
-            取消
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -223,7 +231,7 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
             onClick={submit}
             className="rounded-md border border-[var(--accent)] px-4 py-1.5 text-[var(--accent)] hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            创建
+            {t('terminals.create')}
           </button>
         </div>
       </div>

@@ -3,6 +3,12 @@ export const IPC = {
   SettingsGet: 'settings:get',
   SettingsSet: 'settings:set',
   AppInfo: 'app:info',
+  /** 首启引导：探测 claude 可用性与版本 */
+  AppProbeClaude: 'app:probe-claude',
+  // 自动更新（M6 §13）
+  UpdaterGetState: 'updater:get-state',
+  UpdaterCheck: 'updater:check',
+  UpdaterInstall: 'updater:install',
   SessionsList: 'sessions:list',
   SessionsProjects: 'sessions:projects',
   SessionsGet: 'sessions:get',
@@ -72,5 +78,7 @@ export const IPC_EVENTS = {
   /** F5 对话流式事件（delta/done/error，按 convId+turnId 定位） */
   AiDelta: 'evt:ai:delta',
   /** F5 任务状态变化（入队/开跑/完成/失败/取消） */
-  TaskUpdate: 'evt:task:update'
+  TaskUpdate: 'evt:task:update',
+  /** 自动更新状态变化（checking/downloading/downloaded/…） */
+  UpdaterState: 'evt:updater:state'
 } as const

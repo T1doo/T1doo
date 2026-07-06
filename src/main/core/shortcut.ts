@@ -1,4 +1,5 @@
 import { globalShortcut } from 'electron'
+import { t } from '../services/i18n'
 
 /**
  * 启动器全局热键（§7.3 / R5）：注册失败（被 PowerToys Run 等占用）不抛错，
@@ -23,9 +24,11 @@ export class LauncherShortcut {
     this.error = null
     try {
       this.registered = globalShortcut.register(accelerator, handler)
-      if (!this.registered) this.error = `热键 ${accelerator} 已被其它程序占用`
+      if (!this.registered) this.error = t('err.hotkeyOccupied', { accelerator })
     } catch (err) {
-      this.error = `热键格式无效：${err instanceof Error ? err.message : String(err)}`
+      this.error = t('err.hotkeyInvalid', {
+        message: err instanceof Error ? err.message : String(err)
+      })
     }
     if (this.registered) this.current = accelerator
     return this.registered

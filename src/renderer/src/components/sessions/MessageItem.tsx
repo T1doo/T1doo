@@ -2,7 +2,8 @@ import { memo, useState } from 'react'
 import type { ContentBlockView, MessageView } from '@shared/sessions'
 import Markdown from '../Markdown'
 import CodeBlock from '../CodeBlock'
-import { formatDateTime } from '../../lib/format'
+import { useFormat } from '../../lib/format'
+import { useI18n } from '../../lib/i18n'
 
 function toolSummary(block: Extract<ContentBlockView, { kind: 'tool_use' }>): string {
   const input = block.input as Record<string, unknown> | null
@@ -43,12 +44,13 @@ function Collapsible({
 }
 
 function Block({ block }: { block: ContentBlockView }): React.JSX.Element | null {
+  const { t } = useI18n()
   switch (block.kind) {
     case 'text':
       return <Markdown text={block.text} />
     case 'thinking':
       return (
-        <Collapsible summary="思考过程" tone="thinking">
+        <Collapsible summary={t('sessions.thinking')} tone="thinking">
           <div className="text-[13px] whitespace-pre-wrap text-[var(--fg-muted)]">{block.text}</div>
         </Collapsible>
       )
@@ -60,9 +62,12 @@ function Block({ block }: { block: ContentBlockView }): React.JSX.Element | null
       )
     case 'tool_result': {
       if (!block.text.trim()) return null
-      const text = block.text.length > 8000 ? `${block.text.slice(0, 8000)}\n…（截断）` : block.text
+      const text =
+        block.text.length > 8000
+          ? `${block.text.slice(0, 8000)}\n${t('sessions.truncated')}`
+          : block.text
       return (
-        <Collapsible summary="工具结果" tone={block.isError ? 'error' : 'tool'}>
+        <Collapsible summary={t('sessions.toolResult')} tone={block.isError ? 'error' : 'tool'}>
           <pre className="max-h-80 overflow-auto text-[13px] whitespace-pre-wrap">{text}</pre>
         </Collapsible>
       )
@@ -75,6 +80,8 @@ interface MessageItemProps {
 }
 
 const MessageItem = memo(function MessageItem({ message }: MessageItemProps): React.JSX.Element {
+  const { t } = useI18n()
+  const fmt = useFormat()
   const isUser = message.role === 'user'
   return (
     <div
@@ -84,10 +91,10 @@ const MessageItem = memo(function MessageItem({ message }: MessageItemProps): Re
     >
       <div className="mb-1 flex items-baseline gap-2 text-xs text-[var(--fg-muted)]">
         <span className={isUser ? 'font-medium text-[var(--accent)]' : 'font-medium'}>
-          {isUser ? '用户' : '助手'}
+          {isUser ? t('sessions.roleUser') : t('sessions.roleAssistant')}
         </span>
         {message.model && <span>{message.model}</span>}
-        <span>{formatDateTime(message.ts)}</span>
+        <span>{fmt.formatDateTime(message.ts)}</span>
       </div>
       <div className="space-y-1">
         {isUser

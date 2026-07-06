@@ -6,6 +6,7 @@ import { discoverSessionFiles, SESSION_FILE_RE } from './discovery'
 import type { WorkerRequest, WorkerResponse } from './scan.worker'
 import type { SessionsDao, SyncCursor } from '../../db/dao'
 import type { SessionDetail, SyncProgress } from '../../../shared/sessions'
+import { t } from '../i18n'
 
 export interface ClaudeDataServiceOptions {
   /** ~/.claude/projects */
@@ -146,9 +147,9 @@ export class ClaudeDataService {
   /** 详情按需解析（worker 内流式全文解析） */
   async getDetail(sessionId: string): Promise<SessionDetail> {
     const summary = this.opts.dao.getSessionSummary(sessionId)
-    if (!summary) throw new Error(`会话不存在：${sessionId}`)
+    if (!summary) throw new Error(t('err.sessionNotFound', { id: sessionId }))
     const paths = this.opts.dao.getSessionPath(sessionId)
-    if (!paths?.jsonlPath) throw new Error(`会话缺少 JSONL 路径：${sessionId}`)
+    if (!paths?.jsonlPath) throw new Error(t('err.sessionNoJsonl', { id: sessionId }))
     const resp = await this.request({
       kind: 'parseDetail',
       reqId: 0,

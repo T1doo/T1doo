@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { t } from '../i18n'
 
 /**
  * Engine B：`api`（§7.5.1）。@anthropic-ai/sdk messages.stream() 直连；
@@ -27,24 +28,24 @@ export interface ApiTurnOutcome {
 /** SDK 错误 → 面向用户的明确提示（验收①：断网/无 Key 等异常有明确提示） */
 export function describeApiError(err: unknown): string {
   if (err instanceof Anthropic.AuthenticationError) {
-    return 'API Key 无效或已被吊销（401）：请在设置页检查 Key'
+    return t('err.api401')
   }
   if (err instanceof Anthropic.PermissionDeniedError) {
-    return '该 API Key 无权访问此模型（403）'
+    return t('err.api403')
   }
   if (err instanceof Anthropic.NotFoundError) {
-    return '模型不存在或端点不可用（404）：请检查模型与 baseUrl'
+    return t('err.api404')
   }
   if (err instanceof Anthropic.RateLimitError) {
-    return '触发限流（429）：请稍后重试'
+    return t('err.api429')
   }
   if (err instanceof Anthropic.APIConnectionError) {
-    return '网络连接失败：请检查网络、代理或自定义 baseUrl'
+    return t('err.apiConnection')
   }
   if (err instanceof Anthropic.APIError) {
-    return `Anthropic API 错误（${err.status ?? '?'}）：${err.message}`
+    return t('err.apiGeneric', { status: err.status ?? '?', message: err.message })
   }
-  if (err instanceof Error && err.name === 'AbortError') return '已停止'
+  if (err instanceof Error && err.name === 'AbortError') return t('err.stopped')
   return err instanceof Error ? err.message : String(err)
 }
 
@@ -58,7 +59,7 @@ export class ApiChatEngine {
     opts: ApiTurnOptions,
     onDelta: (text: string) => void
   ): Promise<ApiTurnOutcome> {
-    if (this.active.has(convId)) throw new Error('该对话已有回合进行中')
+    if (this.active.has(convId)) throw new Error(t('err.turnInProgress'))
 
     const client = new Anthropic({
       apiKey: opts.apiKey,
@@ -84,7 +85,7 @@ export class ApiChatEngine {
         .map((b) => b.text)
         .join('')
       if (final.stop_reason === 'refusal') {
-        throw new Error('模型出于安全原因拒绝了本次请求')
+        throw new Error(t('err.apiRefusal'))
       }
       return {
         text,

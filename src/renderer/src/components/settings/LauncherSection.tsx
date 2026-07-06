@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { LauncherState } from '@shared/launcher'
+import { useI18n, type TFunc } from '../../lib/i18n'
 
 /** 键盘事件 → Electron Accelerator（修饰键 + 主键；单独按修饰键不成立） */
 function eventToAccelerator(e: React.KeyboardEvent): string | null {
@@ -17,16 +18,19 @@ function eventToAccelerator(e: React.KeyboardEvent): string | null {
   return [...mods, main].join('+')
 }
 
-function formatScanTime(ts: number | null): string {
-  if (!ts) return '尚未扫描'
+function formatScanTime(ts: number | null, t: TFunc): string {
+  if (!ts) return t('settingsLauncher.scan.never')
   const min = Math.round((Date.now() - ts) / 60_000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min} 分钟前`
+  if (min < 1) return t('time.justNow')
+  if (min < 60) return t('time.minutesAgo', { n: min })
   const hours = Math.round(min / 60)
-  return hours < 24 ? `${hours} 小时前` : `${Math.round(hours / 24)} 天前`
+  return hours < 24
+    ? t('time.hoursAgo', { n: hours })
+    : t('time.daysAgo', { n: Math.round(hours / 24) })
 }
 
 function LauncherSection(): React.JSX.Element {
+  const { t } = useI18n()
   const [state, setState] = useState<LauncherState | null>(null)
   const [recording, setRecording] = useState(false)
   const [rescanning, setRescanning] = useState(false)
@@ -63,18 +67,14 @@ function LauncherSection(): React.JSX.Element {
 
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
-      <h2 className="mb-1 font-medium">启动器</h2>
-      <p className="mb-4 text-xs text-[var(--fg-muted)]">
-        全局热键唤起命令面板：秒跳项目 / 会话 / 终端 / 提示词，启动应用与打开网址
-      </p>
+      <h2 className="mb-1 font-medium">{t('settingsLauncher.title')}</h2>
+      <p className="mb-4 text-xs text-[var(--fg-muted)]">{t('settingsLauncher.desc')}</p>
 
       <div className="flex items-center justify-between py-1.5">
         <span>
-          全局热键
+          {t('settingsLauncher.hotkey')}
           {!state.hotkeyRegistered && (
-            <span className="ml-2 text-xs text-red-500">
-              注册失败（可能与 PowerToys Run 等冲突），请改绑
-            </span>
+            <span className="ml-2 text-xs text-red-500">{t('settingsLauncher.hotkey.failed')}</span>
           )}
         </span>
         <button
@@ -103,15 +103,16 @@ function LauncherSection(): React.JSX.Element {
                 : 'border-red-500 text-red-500'
           }`}
         >
-          {recording ? '按下新热键…' : state.hotkey}
+          {recording ? t('settingsLauncher.hotkey.recording') : state.hotkey}
         </button>
       </div>
 
       <div className="flex items-center justify-between py-1.5">
         <span>
-          应用索引
+          {t('settingsLauncher.appIndex')}
           <span className="ml-2 text-xs text-[var(--fg-muted)]">
-            {state.appCount} 个应用 · {formatScanTime(state.lastScanAt)}
+            {t('settingsLauncher.appCount', { n: state.appCount })} ·{' '}
+            {formatScanTime(state.lastScanAt, t)}
           </span>
         </span>
         <button
@@ -120,7 +121,9 @@ function LauncherSection(): React.JSX.Element {
           onClick={() => void rescan()}
           className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)] disabled:opacity-50"
         >
-          {rescanning || state.scanning ? '扫描中…' : '重新扫描'}
+          {rescanning || state.scanning
+            ? t('settingsLauncher.scanning')
+            : t('settingsLauncher.rescan')}
         </button>
       </div>
     </section>

@@ -1,5 +1,6 @@
 import type { SearchHit } from '@shared/sessions'
-import { formatRelative, projectShortName } from '../../lib/format'
+import { useFormat } from '../../lib/format'
+import { useI18n } from '../../lib/i18n'
 
 /** dao.SNIPPET_OPEN/CLOSE 标记 → <mark> */
 function renderSnippet(snippet: string): React.ReactNode[] {
@@ -22,11 +23,13 @@ interface SearchResultsProps {
 }
 
 function SearchResults({ hits, isLoading, onSelect }: SearchResultsProps): React.JSX.Element {
+  const { t } = useI18n()
+  const fmt = useFormat()
   if (isLoading) {
-    return <div className="p-6 text-center text-[var(--fg-muted)]">搜索中…</div>
+    return <div className="p-6 text-center text-[var(--fg-muted)]">{t('sessions.searching')}</div>
   }
   if (hits.length === 0) {
-    return <div className="p-6 text-center text-[var(--fg-muted)]">没有匹配的消息</div>
+    return <div className="p-6 text-center text-[var(--fg-muted)]">{t('sessions.noMatches')}</div>
   }
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -42,9 +45,9 @@ function SearchResults({ hits, isLoading, onSelect }: SearchResultsProps): React
             {renderSnippet(h.snippet)}
           </div>
           <div className="mt-0.5 flex gap-2 text-xs text-[var(--fg-muted)]">
-            <span>{projectShortName(h.projectPath)}</span>
-            <span>{h.role === 'user' ? '用户' : '助手'}</span>
-            <span>{formatRelative(h.ts)}</span>
+            <span>{fmt.projectShortName(h.projectPath)}</span>
+            <span>{h.role === 'user' ? t('sessions.roleUser') : t('sessions.roleAssistant')}</span>
+            <span>{fmt.formatRelative(h.ts)}</span>
           </div>
         </button>
       ))}

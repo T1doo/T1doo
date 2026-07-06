@@ -1,0 +1,61 @@
+# 发布流水线（§13）：tag push → 构建/测试 → electron-builder 产物 + SHA256 → 草稿 Release 人工发布
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm exec electron-vite build
+
+      # latest.yml 是 electron-updater 的版本清单，必须随产物一起上传
+      - name: Package (NSIS + portable zip)
+        run: pnpm exec electron-builder --win --publish never
+
+      - name: Generate SHA256SUMS
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist -Include 'T1doo-Setup-*.exe','T1doo-*-portable.zip' -Recurse
+          $lines = foreach ($f in $files) {
+            "{0}  {1}" -f (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower(), $f.Name
+          }
+          $lines | Out-File dist/SHA256SUMS.txt -Encoding ascii
+          Get-Content dist/SHA256SUMS.txt
+
+      - name: Draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            dist/T1doo-Setup-*.exe
+            dist/T1doo-Setup-*.exe.blockmap
+            dist/T1doo-*-portable.zip
+            dist/latest.yml
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true

@@ -1,17 +1,27 @@
 import { useEffect, useState } from 'react'
-import type { AppSettings, ThemeSetting } from '@shared/types'
+import type { AppSettings, Language, ThemeSetting } from '@shared/types'
+import type { I18nKey } from '@shared/i18n'
+import { useI18n } from '../lib/i18n'
+import AboutSection from '../components/settings/AboutSection'
 import BackendProfilesSection from '../components/settings/BackendProfilesSection'
 import HooksSection from '../components/settings/HooksSection'
 import LauncherSection from '../components/settings/LauncherSection'
 import AiSection from '../components/settings/AiSection'
 
-const THEME_OPTIONS: { value: ThemeSetting; label: string }[] = [
-  { value: 'dark', label: '暗色' },
-  { value: 'light', label: '亮色' },
-  { value: 'system', label: '跟随系统' }
+const THEME_OPTIONS: { value: ThemeSetting; labelKey: I18nKey }[] = [
+  { value: 'dark', labelKey: 'settings.theme.dark' },
+  { value: 'light', labelKey: 'settings.theme.light' },
+  { value: 'system', labelKey: 'settings.theme.system' }
+]
+
+// 语言名用各自语言原文呈现，不随界面语言翻译
+const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
+  { value: 'zh-CN', label: '中文' },
+  { value: 'en', label: 'English' }
 ]
 
 function SettingsPage(): React.JSX.Element {
+  const { t } = useI18n()
   const [settings, setSettings] = useState<AppSettings | null>(null)
 
   useEffect(() => {
@@ -27,31 +37,47 @@ function SettingsPage(): React.JSX.Element {
   }, [])
 
   if (!settings) {
-    return <div className="p-8 text-[var(--fg-muted)]">加载中…</div>
+    return <div className="p-8 text-[var(--fg-muted)]">{t('common.loading')}</div>
   }
 
   const update = (patch: Partial<AppSettings>): void => {
     void window.t1doo.settings.set(patch).then(setSettings)
   }
 
+  const pillClass = (active: boolean): string =>
+    `rounded-md border px-3 py-1.5 transition-colors ${
+      active
+        ? 'border-[var(--accent)] text-[var(--accent)]'
+        : 'border-[var(--border)] text-[var(--fg-muted)] hover:text-[var(--fg)]'
+    }`
+
   return (
     <div className="p-8">
-      <h1 className="mb-6 text-xl font-semibold">设置</h1>
+      <h1 className="mb-6 text-xl font-semibold">{t('settings.title')}</h1>
 
       <div className="max-w-2xl space-y-6">
         <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
-          <h2 className="mb-3 font-medium">外观</h2>
+          <h2 className="mb-3 font-medium">{t('settings.appearance')}</h2>
           <div className="flex gap-2">
             {THEME_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => update({ theme: opt.value })}
-                className={`rounded-md border px-3 py-1.5 transition-colors ${
-                  settings.theme === opt.value
-                    ? 'border-[var(--accent)] text-[var(--accent)]'
-                    : 'border-[var(--border)] text-[var(--fg-muted)] hover:text-[var(--fg)]'
-                }`}
+                className={pillClass(settings.theme === opt.value)}
+              >
+                {t(opt.labelKey)}
+              </button>
+            ))}
+          </div>
+          <h2 className="mt-5 mb-3 font-medium">{t('settings.language')}</h2>
+          <div className="flex gap-2">
+            {LANGUAGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => update({ language: opt.value })}
+                className={pillClass(settings.language === opt.value)}
               >
                 {opt.label}
               </button>
@@ -60,11 +86,13 @@ function SettingsPage(): React.JSX.Element {
         </section>
 
         <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
-          <h2 className="mb-3 font-medium">行为</h2>
+          <h2 className="mb-3 font-medium">{t('settings.behavior')}</h2>
           <label className="flex cursor-pointer items-center justify-between py-1.5">
             <span>
-              开机自启
-              <span className="ml-2 text-xs text-[var(--fg-muted)]">仅安装版生效</span>
+              {t('settings.autoLaunch')}
+              <span className="ml-2 text-xs text-[var(--fg-muted)]">
+                {t('settings.autoLaunch.hint')}
+              </span>
             </span>
             <input
               type="checkbox"
@@ -74,7 +102,7 @@ function SettingsPage(): React.JSX.Element {
             />
           </label>
           <label className="flex cursor-pointer items-center justify-between py-1.5">
-            <span>关闭窗口时最小化到托盘</span>
+            <span>{t('settings.closeToTray')}</span>
             <input
               type="checkbox"
               checked={settings.closeToTray}
@@ -84,8 +112,10 @@ function SettingsPage(): React.JSX.Element {
           </label>
           <label className="flex cursor-pointer items-center justify-between py-1.5">
             <span>
-              会话等待输入时系统通知
-              <span className="ml-2 text-xs text-[var(--fg-muted)]">需开启 hooks 状态感知</span>
+              {t('settings.notifyWaiting')}
+              <span className="ml-2 text-xs text-[var(--fg-muted)]">
+                {t('settings.notifyWaiting.hint')}
+              </span>
             </span>
             <input
               type="checkbox"
@@ -95,7 +125,7 @@ function SettingsPage(): React.JSX.Element {
             />
           </label>
           <label className="flex cursor-pointer items-center justify-between py-1.5">
-            <span>后台任务完成/失败时系统通知</span>
+            <span>{t('settings.notifyTaskDone')}</span>
             <input
               type="checkbox"
               checked={settings.notifyTaskDone}
@@ -109,6 +139,7 @@ function SettingsPage(): React.JSX.Element {
         <LauncherSection />
         <HooksSection />
         <BackendProfilesSection />
+        <AboutSection />
       </div>
     </div>
   )

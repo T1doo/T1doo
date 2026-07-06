@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { BackendProfileInput, BackendProfileView } from '@shared/backend'
+import { useI18n } from '../../lib/i18n'
 
 const EMPTY_FORM: BackendProfileInput = { name: '', auth: 'custom' }
 
 /** §7.2.6 后端档案管理：token 走 safeStorage，界面只见「已配置」 */
 function BackendProfilesSection(): React.JSX.Element {
+  const { t } = useI18n()
   const [profiles, setProfiles] = useState<BackendProfileView[]>([])
   const [editing, setEditing] = useState<BackendProfileInput | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,9 +54,9 @@ function BackendProfilesSection(): React.JSX.Element {
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-medium">
-          后端档案
+          {t('settingsBackend.title')}
           <span className="ml-2 text-xs text-[var(--fg-muted)]">
-            claude 连接的后端，终端/任务通用
+            {t('settingsBackend.subtitle')}
           </span>
         </h2>
         <button
@@ -62,7 +64,7 @@ function BackendProfilesSection(): React.JSX.Element {
           onClick={() => setEditing({ ...EMPTY_FORM })}
           className="rounded-md border border-[var(--accent)] px-2.5 py-1 text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)]"
         >
-          ＋ 添加
+          {t('settingsBackend.add')}
         </button>
       </div>
 
@@ -77,14 +79,14 @@ function BackendProfilesSection(): React.JSX.Element {
                 <span className="truncate font-medium">{p.name}</span>
                 {p.isDefault && (
                   <span className="shrink-0 rounded bg-[var(--bg-hover)] px-1.5 py-0.5 text-xs text-[var(--accent)]">
-                    默认
+                    {t('settingsBackend.default')}
                   </span>
                 )}
               </div>
               <div className="truncate text-xs text-[var(--fg-muted)]">
                 {p.auth === 'subscription'
-                  ? '订阅登录态（不注入 ANTHROPIC_*）'
-                  : `${p.baseUrl ?? '未填 baseURL'} · token ${p.hasToken ? '已配置' : '未配置'}${p.model ? ` · ${p.model}` : ''}`}
+                  ? t('settingsBackend.subscriptionDesc')
+                  : `${p.baseUrl ?? t('settingsBackend.noBaseUrl')} · token ${p.hasToken ? t('settingsBackend.token.configured') : t('settingsBackend.token.notConfigured')}${p.model ? ` · ${p.model}` : ''}`}
               </div>
             </div>
             {!p.isDefault && (
@@ -93,7 +95,7 @@ function BackendProfilesSection(): React.JSX.Element {
                 onClick={() => setDefault(p)}
                 className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--fg-muted)] hover:text-[var(--fg)]"
               >
-                设为默认
+                {t('settingsBackend.setDefault')}
               </button>
             )}
             <button
@@ -101,14 +103,14 @@ function BackendProfilesSection(): React.JSX.Element {
               onClick={() => startEdit(p)}
               className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--fg-muted)] hover:text-[var(--fg)]"
             >
-              编辑
+              {t('settingsBackend.edit')}
             </button>
             <button
               type="button"
               onClick={() => remove(p.id)}
               className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-xs text-red-500 hover:bg-[var(--bg-hover)]"
             >
-              删除
+              {t('common.delete')}
             </button>
           </li>
         ))}
@@ -118,16 +120,20 @@ function BackendProfilesSection(): React.JSX.Element {
         <div className="mt-3 space-y-3 rounded-md border border-[var(--border)] bg-[var(--bg)] p-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-[var(--fg-muted)]">名称</label>
+              <label className="mb-1 block text-sm text-[var(--fg-muted)]">
+                {t('settingsBackend.form.name')}
+              </label>
               <input
                 value={editing.name}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                placeholder="DeepSeek / 公司网关…"
+                placeholder={t('settingsBackend.form.namePlaceholder')}
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-1.5 outline-none focus:border-[var(--accent)]"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-[var(--fg-muted)]">类型</label>
+              <label className="mb-1 block text-sm text-[var(--fg-muted)]">
+                {t('settingsBackend.form.auth')}
+              </label>
               <select
                 value={editing.auth}
                 onChange={(e) =>
@@ -135,8 +141,8 @@ function BackendProfilesSection(): React.JSX.Element {
                 }
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-panel)] px-2 py-1.5 outline-none focus:border-[var(--accent)]"
               >
-                <option value="custom">自定义后端（baseURL + token）</option>
-                <option value="subscription">订阅登录态</option>
+                <option value="custom">{t('settingsBackend.auth.custom')}</option>
+                <option value="subscription">{t('settingsBackend.auth.subscription')}</option>
               </select>
             </div>
           </div>
@@ -145,7 +151,7 @@ function BackendProfilesSection(): React.JSX.Element {
             <>
               <div>
                 <label className="mb-1 block text-sm text-[var(--fg-muted)]">
-                  Base URL（ANTHROPIC_BASE_URL）
+                  {t('settingsBackend.form.baseUrl')}
                 </label>
                 <input
                   value={editing.baseUrl ?? ''}
@@ -156,7 +162,7 @@ function BackendProfilesSection(): React.JSX.Element {
               </div>
               <div>
                 <label className="mb-1 block text-sm text-[var(--fg-muted)]">
-                  Token（ANTHROPIC_AUTH_TOKEN，DPAPI 加密存储；留空 = 保持不变）
+                  {t('settingsBackend.form.token')}
                 </label>
                 <input
                   type="password"
@@ -169,7 +175,7 @@ function BackendProfilesSection(): React.JSX.Element {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-sm text-[var(--fg-muted)]">
-                    默认模型（可选）
+                    {t('settingsBackend.form.model')}
                   </label>
                   <input
                     value={editing.model ?? ''}
@@ -180,7 +186,7 @@ function BackendProfilesSection(): React.JSX.Element {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm text-[var(--fg-muted)]">
-                    后台小模型（可选）
+                    {t('settingsBackend.form.smallFastModel')}
                   </label>
                   <input
                     value={editing.smallFastModel ?? ''}
@@ -199,7 +205,7 @@ function BackendProfilesSection(): React.JSX.Element {
                 onChange={(e) => setEditing({ ...editing, clearInheritedEnv: e.target.checked })}
                 className="h-4 w-4 accent-[var(--accent)]"
               />
-              清除继承到的 ANTHROPIC_* 环境变量（强制订阅登录态）
+              {t('settingsBackend.form.clearEnv')}
             </label>
           )}
 
@@ -211,7 +217,7 @@ function BackendProfilesSection(): React.JSX.Element {
               onClick={() => setEditing(null)}
               className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--fg-muted)] hover:text-[var(--fg)]"
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -219,7 +225,7 @@ function BackendProfilesSection(): React.JSX.Element {
               onClick={save}
               className="rounded-md border border-[var(--accent)] px-3 py-1.5 text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)] disabled:opacity-40"
             >
-              保存
+              {t('common.save')}
             </button>
           </div>
         </div>

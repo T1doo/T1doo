@@ -14,6 +14,7 @@ import { RingBuffer } from './ring-buffer'
 import { buildClaudeArgs, resolveClaudeCommand } from './claude-cmd'
 import { buildClaudeEnv } from '../backend/env'
 import type { BackendProfilesService } from '../backend/profiles'
+import { t } from '../i18n'
 
 const FLUSH_INTERVAL_MS = 16
 const DEFAULT_COLS = 100
@@ -220,7 +221,7 @@ export class TerminalManager {
 
   private mustGet(id: string): TermRecord {
     const record = this.records.get(id)
-    if (!record) throw new Error(`终端不存在：${id}`)
+    if (!record) throw new Error(t('err.terminalNotFound', { id }))
     return record
   }
 }

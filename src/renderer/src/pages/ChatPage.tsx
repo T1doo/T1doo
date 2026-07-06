@@ -4,7 +4,8 @@ import type { AiEngine, ChatSearchHit, ConversationSummary } from '@shared/ai'
 import { API_MODELS } from '@shared/ai'
 import type { BackendProfileView } from '@shared/backend'
 import Markdown from '../components/Markdown'
-import { formatRelative, formatTokens } from '../lib/format'
+import { formatTokens, useFormat } from '../lib/format'
+import { useI18n } from '../lib/i18n'
 
 interface ChatFocus {
   convId: string
@@ -36,6 +37,8 @@ function renderSnippet(snippet: string): React.ReactNode {
 }
 
 function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
+  const { t } = useI18n()
+  const fmt = useFormat()
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<string | null>(null)
   const [input, setInput] = useState('')
@@ -104,8 +107,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messagesQuery.data, streamForSelected?.text])
 
-  const conv: ConversationSummary | null =
-    convsQuery.data?.find((c) => c.id === selected) ?? null
+  const conv: ConversationSummary | null = convsQuery.data?.find((c) => c.id === selected) ?? null
   const streamingText = streamForSelected?.text ?? pendingFromQuery?.text ?? null
   const isStreaming = streamForSelected !== undefined || pendingFromQuery !== null
   const lastError = selected ? errors[selected] : undefined
@@ -146,7 +148,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
   }
 
   const deleteConv = async (id: string): Promise<void> => {
-    if (!window.confirm('删除该对话及全部消息？')) return
+    if (!window.confirm(t('chat.deleteConfirm'))) return
     await window.t1doo.ai.convDelete(id)
     if (selected === id) setSelected(null)
     void queryClient.invalidateQueries({ queryKey: ['ai-convs'] })
@@ -171,12 +173,12 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
             onClick={newConversation}
             className="w-full rounded-md border border-[var(--accent)] px-3 py-1.5 text-[var(--accent)] transition-colors hover:bg-[var(--bg-hover)]"
           >
-            ＋ 新对话
+            {t('chat.new')}
           </button>
           <input
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
-            placeholder="搜索对话历史…"
+            placeholder={t('chat.searchPlaceholder')}
             data-testid="chat-search"
             className="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 outline-none focus:border-[var(--accent)]"
           />
@@ -185,7 +187,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
           {showSearch ? (
             searchHits.length === 0 ? (
               <div className="px-2 py-4 text-sm text-[var(--fg-muted)]">
-                {searchQuery.isFetching ? '搜索中…' : '无匹配结果'}
+                {searchQuery.isFetching ? t('chat.searching') : t('chat.noMatches')}
               </div>
             ) : (
               <ul className="space-y-1">
@@ -222,13 +224,13 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                     <div className="truncate text-sm">{c.title}</div>
                     <div className="mt-0.5 flex gap-2 text-xs text-[var(--fg-muted)]">
                       <span>{c.engine === 'api' ? 'API' : 'CLI'}</span>
-                      <span>{c.messageCount} 条</span>
-                      <span>{formatRelative(c.updatedAt)}</span>
+                      <span>{t('chat.messageCountShort', { n: c.messageCount })}</span>
+                      <span>{fmt.formatRelative(c.updatedAt)}</span>
                     </div>
                   </button>
                   <button
                     type="button"
-                    title="删除对话"
+                    title={t('chat.deleteConvTitle')}
                     onClick={() => void deleteConv(c.id)}
                     className="absolute top-2 right-1 hidden rounded px-1 text-[var(--fg-muted)] group-hover:block hover:text-red-400"
                   >
@@ -237,9 +239,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                 </li>
               ))}
               {convsQuery.data?.length === 0 && (
-                <li className="px-2 py-4 text-sm text-[var(--fg-muted)]">
-                  还没有对话。输入问题开始第一段对话，或在任意界面按启动器热键后输入「@ 问题」。
-                </li>
+                <li className="px-2 py-4 text-sm text-[var(--fg-muted)]">{t('chat.emptyList')}</li>
               )}
             </ul>
           )}
@@ -250,11 +250,11 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-3">
           <h1 className="min-w-0 flex-1 truncate font-medium">
-            {conv ? conv.title : '新对话'}
+            {conv ? conv.title : t('chat.newConversation')}
           </h1>
           {conv && (
             <span className="shrink-0 rounded bg-[var(--bg-hover)] px-2 py-0.5 text-xs text-[var(--fg-muted)]">
-              {conv.engine === 'api' ? `API · ${conv.model ?? ''}` : 'CLI（Claude Code）'}
+              {conv.engine === 'api' ? `API · ${conv.model ?? ''}` : t('chat.engineCliBadge')}
             </span>
           )}
         </header>
@@ -262,11 +262,8 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4" data-testid="chat-thread">
           {selected === null ? (
             <div className="mx-auto max-w-xl pt-16 text-center text-[var(--fg-muted)]">
-              <p className="text-lg">发起新对话</p>
-              <p className="mt-2 text-sm">
-                CLI 引擎复用 Claude Code 登录态/后端档案，零配置；API 引擎直连
-                Anthropic（在设置页配置 Key）。
-              </p>
+              <p className="text-lg">{t('chat.emptyTitle')}</p>
+              <p className="mt-2 text-sm">{t('chat.emptyHint')}</p>
             </div>
           ) : (
             <div className="mx-auto max-w-3xl space-y-4">
@@ -282,11 +279,15 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                       <div className="mt-1 flex gap-3 text-xs text-[var(--fg-muted)]">
                         {m.outputTokens != null && (
                           <span>
-                            {formatTokens(m.inputTokens ?? 0)} in /{' '}
-                            {formatTokens(m.outputTokens)} out
+                            {formatTokens(m.inputTokens ?? 0)} in / {formatTokens(m.outputTokens)}{' '}
+                            out
                           </span>
                         )}
-                        {m.error && <span className="text-red-400">中断：{m.error}</span>}
+                        {m.error && (
+                          <span className="text-red-400">
+                            {t('chat.interrupted', { msg: m.error })}
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -297,9 +298,9 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                   {streamingText ? (
                     <Markdown text={streamingText} />
                   ) : (
-                    <div className="text-[var(--fg-muted)]">思考中…</div>
+                    <div className="text-[var(--fg-muted)]">{t('chat.thinking')}</div>
                   )}
-                  <div className="mt-1 text-xs text-[var(--accent)]">回答中…</div>
+                  <div className="mt-1 text-xs text-[var(--accent)]">{t('chat.answering')}</div>
                 </div>
               )}
               {lastError && !isStreaming && (
@@ -340,7 +341,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                           : 'text-[var(--fg-muted)] hover:text-[var(--fg)]'
                       }`}
                     >
-                      {eng === 'cli' ? 'CLI 引擎' : 'API 引擎'}
+                      {eng === 'cli' ? t('chat.engineCli') : t('chat.engineApi')}
                     </button>
                   ))}
                 </div>
@@ -350,7 +351,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                     onChange={(e) => setBackendProfileId(e.target.value)}
                     className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
                   >
-                    <option value="">默认后端档案</option>
+                    <option value="">{t('chat.defaultBackend')}</option>
                     {(backendsQuery.data ?? []).map((b: BackendProfileView) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
@@ -371,9 +372,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                       ))}
                     </select>
                     {configQuery.data && !configQuery.data.hasKey && (
-                      <span className="text-xs text-amber-400">
-                        未配置 API Key（设置 → AI 对话）
-                      </span>
+                      <span className="text-xs text-amber-400">{t('chat.noApiKey')}</span>
                     )}
                   </>
                 )}
@@ -389,7 +388,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                     void send()
                   }
                 }}
-                placeholder={isStreaming ? '回答中…' : '输入问题，Enter 发送，Shift+Enter 换行'}
+                placeholder={isStreaming ? t('chat.answering') : t('chat.inputPlaceholder')}
                 rows={Math.min(6, Math.max(1, input.split('\n').length))}
                 data-testid="chat-input"
                 className="min-w-0 flex-1 resize-none rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--accent)]"
@@ -401,7 +400,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                   onClick={stop}
                   className="shrink-0 rounded-md border border-red-500/50 px-4 py-2 text-red-400 transition-colors hover:bg-red-500/10"
                 >
-                  停止
+                  {t('chat.stop')}
                 </button>
               ) : (
                 <button
@@ -411,7 +410,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                   disabled={!input.trim()}
                   className="shrink-0 rounded-md bg-[var(--accent)] px-4 py-2 text-white transition-opacity disabled:opacity-40"
                 >
-                  发送
+                  {t('chat.send')}
                 </button>
               )}
             </div>

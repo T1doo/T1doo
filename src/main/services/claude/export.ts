@@ -1,8 +1,11 @@
 import type { SessionDetail } from '../../../shared/sessions'
+import { getAppLocale, t } from '../i18n'
 
 function fmtTs(ts: number | null): string {
   if (ts == null) return ''
-  return new Date(ts).toLocaleString('zh-CN', { hour12: false })
+  return new Date(ts).toLocaleString(getAppLocale() === 'en' ? 'en-US' : 'zh-CN', {
+    hour12: false
+  })
 }
 
 /** 会话 → Markdown（对话体裁；工具调用折叠为 details 块） */
@@ -11,19 +14,23 @@ export function sessionToMarkdown(detail: SessionDetail, includeTools: boolean):
   const out: string[] = []
   out.push(`# ${s.title}`)
   out.push('')
-  out.push(`- 项目：${s.projectPath ?? '(未知)'}`)
-  out.push(`- 会话 ID：\`${s.id}\``)
-  out.push(`- 时间：${fmtTs(s.createdAt)} — ${fmtTs(s.updatedAt)}`)
+  out.push(`- ${t('sys.export.project', { path: s.projectPath ?? t('sys.export.unknown') })}`)
+  out.push(`- ${t('sys.export.sessionId', { id: s.id })}`)
+  out.push(`- ${t('sys.export.time', { from: fmtTs(s.createdAt), to: fmtTs(s.updatedAt) })}`)
   out.push(
-    `- 消息数：${s.messageCount} · tokens：输入 ${s.inputTokens.toLocaleString()} / 输出 ${s.outputTokens.toLocaleString()}`
+    `- ${t('sys.export.stats', {
+      count: s.messageCount,
+      input: s.inputTokens.toLocaleString(),
+      output: s.outputTokens.toLocaleString()
+    })}`
   )
-  if (s.modelLast) out.push(`- 模型：${s.modelLast}`)
+  if (s.modelLast) out.push(`- ${t('sys.export.model', { model: s.modelLast })}`)
   out.push('')
   out.push('---')
 
   for (const m of detail.messages) {
     if (m.isSidechain) continue // 侧链（子代理轨迹）不进导出正文
-    const who = m.role === 'user' ? '👤 用户' : '🤖 助手'
+    const who = m.role === 'user' ? t('sys.export.user') : t('sys.export.assistant')
     out.push('')
     out.push(`## ${who}${m.ts ? `（${fmtTs(m.ts)}）` : ''}`)
     for (const b of m.blocks) {
@@ -35,7 +42,7 @@ export function sessionToMarkdown(detail: SessionDetail, includeTools: boolean):
         case 'thinking':
           if (includeTools) {
             out.push('')
-            out.push(`<details><summary>💭 思考</summary>`)
+            out.push(`<details><summary>${t('sys.export.thinking')}</summary>`)
             out.push('')
             out.push(b.text)
             out.push('')
@@ -57,10 +64,16 @@ export function sessionToMarkdown(detail: SessionDetail, includeTools: boolean):
         case 'tool_result':
           if (includeTools && b.text.trim()) {
             out.push('')
-            out.push(`<details><summary>${b.isError ? '❌' : '📄'} 工具结果</summary>`)
+            out.push(
+              `<details><summary>${b.isError ? '❌' : '📄'} ${t('sys.export.toolResult')}</summary>`
+            )
             out.push('')
             out.push('```')
-            out.push(b.text.length > 4000 ? `${b.text.slice(0, 4000)}\n…（截断）` : b.text)
+            out.push(
+              b.text.length > 4000
+                ? `${b.text.slice(0, 4000)}\n${t('sys.export.truncated')}`
+                : b.text
+            )
             out.push('```')
             out.push('')
             out.push('</details>')

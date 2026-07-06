@@ -1,5 +1,6 @@
 import { execFileSync } from 'child_process'
 import type { ClaudeLaunchOptions } from '../../../shared/terminals'
+import { t } from '../i18n'
 
 /**
  * claude 命令解析与参数构造（§7.2.1 / §7.2.2）。
@@ -51,7 +52,7 @@ export function resolveClaudeCommand(): ClaudeCommand {
 }
 
 function claudeNotFound(): Error {
-  return new Error('未找到 claude 命令：请先安装 Claude Code 并确认其在 PATH 中')
+  return new Error(t('err.claudeNotFound'))
 }
 
 export interface BuiltClaudeArgs {

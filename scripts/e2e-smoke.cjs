@@ -5,7 +5,7 @@
  */
 const { _electron } = require('playwright-core')
 const { join } = require('path')
-const { mkdtempSync, mkdirSync } = require('fs')
+const { mkdtempSync, mkdirSync, writeFileSync } = require('fs')
 const { tmpdir } = require('os')
 
 const SHOT_DIR = process.argv[2] || join(__dirname, '..', 'out')
@@ -15,6 +15,8 @@ async function main() {
   const tmp = mkdtempSync(join(tmpdir(), 't1doo-e2e-smoke-'))
   const userData = join(tmp, 'user-data')
   mkdirSync(userData, { recursive: true })
+  // 跳过首启引导（M6）：否则向导覆盖层挡住页面交互
+  writeFileSync(join(userData, 'settings.json'), JSON.stringify({ onboardingDone: true }))
 
   const app = await _electron.launch({
     args: ['.'],

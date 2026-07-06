@@ -42,6 +42,8 @@ async function main() {
   const userData = join(tmp, 'user-data')
   mkdirSync(projectsDir, { recursive: true })
   mkdirSync(userData, { recursive: true })
+  // 跳过首启引导（M6）：否则向导覆盖层挡住页面交互
+  writeFileSync(join(userData, 'settings.json'), JSON.stringify({ onboardingDone: true }))
   // 预置"用户既有配置"验证深合并保留 + 精确还原
   const claudeSettingsPath = join(tmp, 'claude-settings.json')
   const originalSettings = {

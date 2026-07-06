@@ -1,21 +1,15 @@
-/** 时间与数字展示工具 */
+/** 时间与数字展示工具：locale 感知，组件内用 useFormat() 取当前语言绑定版 */
 
-export function formatRelative(ts: number | null): string {
-  if (ts == null) return ''
-  const diff = Date.now() - ts
-  const min = Math.floor(diff / 60_000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min} 分钟前`
-  const hours = Math.floor(min / 60)
-  if (hours < 24) return `${hours} 小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days} 天前`
-  return new Date(ts).toLocaleDateString('zh-CN')
-}
+import { useMemo } from 'react'
+import { translate } from '@shared/i18n'
+import type { Lang } from '@shared/i18n'
+import { useI18n } from './i18n'
 
-export function formatDateTime(ts: number | null): string {
-  if (ts == null) return ''
-  return new Date(ts).toLocaleString('zh-CN', { hour12: false })
+export interface Formatters {
+  formatRelative: (ts: number | null) => string
+  formatDateTime: (ts: number | null) => string
+  formatTokens: (n: number) => string
+  projectShortName: (path: string | null) => string
 }
 
 export function formatTokens(n: number): string {
@@ -24,9 +18,35 @@ export function formatTokens(n: number): string {
   return String(n)
 }
 
-/** 项目路径 → 短名（尾目录名） */
-export function projectShortName(path: string | null): string {
-  if (!path) return '(未知项目)'
-  const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/)
-  return parts[parts.length - 1] || path
+export function createFormatters(lang: Lang): Formatters {
+  return {
+    formatRelative(ts) {
+      if (ts == null) return ''
+      const diff = Date.now() - ts
+      const min = Math.floor(diff / 60_000)
+      if (min < 1) return translate(lang, 'time.justNow')
+      if (min < 60) return translate(lang, 'time.minutesAgo', { n: min })
+      const hours = Math.floor(min / 60)
+      if (hours < 24) return translate(lang, 'time.hoursAgo', { n: hours })
+      const days = Math.floor(hours / 24)
+      if (days < 30) return translate(lang, 'time.daysAgo', { n: days })
+      return new Date(ts).toLocaleDateString(lang)
+    },
+    formatDateTime(ts) {
+      if (ts == null) return ''
+      return new Date(ts).toLocaleString(lang, { hour12: false })
+    },
+    formatTokens,
+    projectShortName(path) {
+      if (!path) return translate(lang, 'common.unknownProject')
+      const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/)
+      return parts[parts.length - 1] || path
+    }
+  }
+}
+
+/** 组件内使用：随 settings.language 切换即时更新 */
+export function useFormat(): Formatters {
+  const { lang } = useI18n()
+  return useMemo(() => createFormatters(lang), [lang])
 }

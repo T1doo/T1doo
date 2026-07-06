@@ -7,6 +7,8 @@ import type {
   LauncherQueryResult
 } from '../../../shared/launcher'
 import type { NavigateRequest } from '../../../shared/api'
+import type { I18nKey } from '../../../shared/i18n'
+import { t } from '../i18n'
 import type { SessionsDao } from '../../db/dao'
 import type { LauncherDao } from '../../db/launcher-dao'
 import { HISTORY_RETENTION_MS, type AppRecord } from '../../db/launcher-dao'
@@ -47,8 +49,9 @@ export interface LauncherServiceOptions {
 
 interface InternalCommand {
   id: string
-  title: string
-  subtitle: string
+  /** 展示文案存 key，query/execute 时经 t() 解析，跟随当前语言 */
+  titleKey: I18nKey
+  subtitleKey: I18nKey
   keywords: string[]
   run: () => Promise<LauncherExecuteResult> | LauncherExecuteResult
 }
@@ -135,8 +138,8 @@ export class LauncherService {
               {
                 key: 'hint:ai',
                 kind: 'hint',
-                title: '输入 @ 问题 直接发起 AI 对话',
-                subtitle: '回车后转到对话页流式作答（默认 cli 引擎）',
+                title: t('launcher.ai.hintTitle'),
+                subtitle: t('launcher.ai.hintSubtitle'),
                 icon: null,
                 target: ''
               }
@@ -149,8 +152,8 @@ export class LauncherService {
             {
               key: 'ai:ask',
               kind: 'ai',
-              title: `问 AI：${truncate(parsed.query, 60)}`,
-              subtitle: '发起对话（结果落入 F5 对话页）',
+              title: t('launcher.ai.askTitle', { query: truncate(parsed.query, 60) }),
+              subtitle: t('launcher.ai.askSubtitle'),
               icon: null,
               target: parsed.query
             }
@@ -159,7 +162,7 @@ export class LauncherService {
       }
       case 'search': {
         if (!parsed.query) return { intent: 'search', items: [] }
-        let host = '搜索引擎'
+        let host = t('launcher.search.engine')
         try {
           host = new URL(this.opts.getSearchUrl().replace('{query}', '')).hostname
         } catch {
@@ -171,7 +174,7 @@ export class LauncherService {
             {
               key: `search:${parsed.query}`,
               kind: 'search',
-              title: `搜索：${parsed.query}`,
+              title: t('launcher.search.title', { query: parsed.query }),
               subtitle: host,
               icon: null,
               target: parsed.query
@@ -186,8 +189,8 @@ export class LauncherService {
             {
               key: `url:${parsed.url}`,
               kind: 'url',
-              title: `打开 ${truncate(parsed.url, 60)}`,
-              subtitle: '默认浏览器',
+              title: t('launcher.url.title', { url: truncate(parsed.url, 60) }),
+              subtitle: t('launcher.url.subtitle'),
               icon: null,
               target: parsed.url
             }
@@ -202,7 +205,7 @@ export class LauncherService {
               key: `path:${parsed.path}`,
               kind: 'path',
               title: truncate(parsed.path, 70),
-              subtitle: exists ? '打开' : '路径不存在',
+              subtitle: exists ? t('launcher.path.open') : t('launcher.path.notFound'),
               icon: null,
               target: parsed.path
             }
@@ -233,7 +236,7 @@ export class LauncherService {
         return this.execApp(item)
       case 'command': {
         const cmd = this.commands.find((c) => c.id === item.target)
-        if (!cmd) return { ok: false, message: `未知命令：${item.target}` }
+        if (!cmd) return { ok: false, message: t('launcher.cmd.unknown', { id: item.target }) }
         return cmd.run()
       }
       case 'url':
@@ -249,7 +252,7 @@ export class LauncherService {
         return { ok: true, message: null }
       }
       case 'ai': {
-        if (!this.opts.chat) return { ok: false, message: 'AI 对话服务未就绪' }
+        if (!this.opts.chat) return { ok: false, message: t('launcher.ai.notReady') }
         try {
           // 默认 cli 引擎（订阅态零配置，Q2 裁决）；回车即提交，主窗跳到对话页看流式回答
           const { convId } = this.opts.chat.send({ text: item.target, engine: 'cli' })
@@ -340,7 +343,9 @@ export class LauncherService {
             key: `session:${s.id}`,
             kind: 'session',
             title: truncate(s.title, 60),
-            subtitle: [project, `${s.messageCount} 条消息`].filter(Boolean).join(' · '),
+            subtitle: [project, t('launcher.session.messages', { n: s.messageCount })]
+              .filter(Boolean)
+              .join(' · '),
             icon: null,
             target: s.id,
             meta: { projectPath: s.projectPath ?? undefined }
@@ -361,7 +366,9 @@ export class LauncherService {
             key: `prompt:${pr.sessionId ?? ''}:${truncate(pr.display, 40)}`,
             kind: 'prompt',
             title: truncate(pr.display, 70),
-            subtitle: pr.project ? `提示词 · ${basename(pr.project)}` : '提示词',
+            subtitle: pr.project
+              ? t('launcher.prompt.withProject', { project: basename(pr.project) })
+              : t('launcher.kind.prompt'),
             icon: null,
             target: pr.display,
             meta: { sessionId: pr.sessionId ?? undefined, projectPath: pr.project ?? undefined }
@@ -383,7 +390,8 @@ export class LauncherService {
             key,
             kind: 'app',
             title: a.name,
-            subtitle: a.kind === 'uwp' ? '应用' : (a.exePath ?? '应用'),
+            subtitle:
+              a.kind === 'uwp' ? t('launcher.kind.app') : (a.exePath ?? t('launcher.kind.app')),
             icon: a.icon,
             target: a.target,
             meta: { appKind: a.kind }
@@ -397,7 +405,7 @@ export class LauncherService {
     // 内部命令也参与普通词匹配（如输入"设置"）
     if (!empty) {
       for (const c of this.commands) {
-        const m = matchScore(query, [c.title, ...c.keywords])
+        const m = matchScore(query, [t(c.titleKey), ...c.keywords])
         if (m > 0) push(this.commandItem(c), m, 0)
       }
     }
@@ -415,7 +423,7 @@ export class LauncherService {
   private queryCommands(query: string): LauncherItem[] {
     const list = query
       ? this.commands
-          .map((c) => ({ c, m: matchScore(query, [c.title, ...c.keywords]) }))
+          .map((c) => ({ c, m: matchScore(query, [t(c.titleKey), ...c.keywords]) }))
           .filter((x) => x.m > 0)
           .sort((a, b) => b.m - a.m)
           .map((x) => x.c)
@@ -428,7 +436,10 @@ export class LauncherService {
       key: `terminal:${id}`,
       kind: 'terminal',
       title,
-      subtitle: `运行中终端 · ${kind === 'claude' ? 'Claude' : 'Shell'} · ${cwd}`,
+      subtitle: t('launcher.terminal.subtitle', {
+        kind: kind === 'claude' ? 'Claude' : 'Shell',
+        cwd
+      }),
       icon: null,
       target: id
     }
@@ -438,8 +449,8 @@ export class LauncherService {
     return {
       key: `command:${c.id}`,
       kind: 'command',
-      title: c.title,
-      subtitle: c.subtitle,
+      title: t(c.titleKey),
+      subtitle: t(c.subtitleKey),
       icon: null,
       target: c.id
     }
@@ -502,15 +513,15 @@ export class LauncherService {
     // 无在跑终端：恢复原会话（或在原项目新建），提示词进剪贴板等待粘贴
     this.opts.effects.copyText(text)
     if (sessionId && this.opts.sessionsDao.getSessionPath(sessionId)) {
-      return { ...this.execSession(sessionId), message: '已恢复会话，提示词已复制（Ctrl+V 粘贴）' }
+      return { ...this.execSession(sessionId), message: t('launcher.prompt.copiedResumed') }
     }
     if (projectPath && existsSync(projectPath)) {
       return {
         ...this.execProject(projectPath),
-        message: '已打开项目终端，提示词已复制（Ctrl+V 粘贴）'
+        message: t('launcher.prompt.copiedProject')
       }
     }
-    return { ok: true, message: '提示词已复制到剪贴板' }
+    return { ok: true, message: t('launcher.prompt.copied') }
   }
 
   private async execApp(item: LauncherItem): Promise<LauncherExecuteResult> {
@@ -520,7 +531,9 @@ export class LauncherService {
       return { ok: true, message: null }
     }
     const err = await this.opts.effects.openPath(item.target)
-    return err ? { ok: false, message: `启动失败：${err}` } : { ok: true, message: null }
+    return err
+      ? { ok: false, message: t('launcher.app.launchFailed', { error: err }) }
+      : { ok: true, message: null }
   }
 
   private buildCommands(): InternalCommand[] {
@@ -531,50 +544,53 @@ export class LauncherService {
     return [
       {
         id: 'new-terminal',
-        title: '新建终端',
-        subtitle: '转到终端页新建 Claude / Shell 终端',
+        titleKey: 'launcher.cmd.newTerminal',
+        subtitleKey: 'launcher.cmd.newTerminal.subtitle',
         keywords: ['new', 'terminal', '终端', 'xin jian'],
         run: () => nav('terminals')
       },
       {
         id: 'open-dashboard',
-        title: '打开指挥台',
-        subtitle: 'Dashboard 总览',
+        titleKey: 'launcher.cmd.openDashboard',
+        subtitleKey: 'launcher.cmd.openDashboard.subtitle',
         keywords: ['dashboard', 'home', '指挥台', '首页'],
         run: () => nav('dashboard')
       },
       {
         id: 'open-sessions',
-        title: '打开会话中心',
-        subtitle: '历史会话搜索与回放',
+        titleKey: 'launcher.cmd.openSessions',
+        subtitleKey: 'launcher.cmd.openSessions.subtitle',
         keywords: ['sessions', 'history', '会话', '历史'],
         run: () => nav('sessions')
       },
       {
         id: 'open-terminals',
-        title: '打开终端页',
-        subtitle: '内置多终端管理',
+        titleKey: 'launcher.cmd.openTerminals',
+        subtitleKey: 'launcher.cmd.openTerminals.subtitle',
         keywords: ['terminals', '终端'],
         run: () => nav('terminals')
       },
       {
         id: 'open-settings',
-        title: '打开设置',
-        subtitle: '主题 / hooks / 后端档案 / 启动器',
+        titleKey: 'launcher.cmd.openSettings',
+        subtitleKey: 'launcher.cmd.openSettings.subtitle',
         keywords: ['settings', 'options', 'preferences', '设置'],
         run: () => nav('settings')
       },
       {
         id: 'rescan-apps',
-        title: '重新扫描应用',
-        subtitle: '刷新开始菜单应用索引',
+        titleKey: 'launcher.cmd.rescanApps',
+        subtitleKey: 'launcher.cmd.rescanApps.subtitle',
         keywords: ['rescan', 'refresh', 'apps', '扫描', '应用'],
-        run: async () => ({ ok: true, message: `已扫描 ${await this.scanApps()} 个应用` })
+        run: async () => ({
+          ok: true,
+          message: t('launcher.cmd.rescanApps.done', { n: await this.scanApps() })
+        })
       },
       {
         id: 'quit',
-        title: '退出 T1doo',
-        subtitle: '结束所有终端并退出',
+        titleKey: 'launcher.cmd.quit',
+        subtitleKey: 'launcher.cmd.quit.subtitle',
         keywords: ['quit', 'exit', '退出'],
         run: () => {
           this.opts.effects.quitApp()

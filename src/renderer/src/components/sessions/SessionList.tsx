@@ -1,7 +1,8 @@
 import { useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { SessionSummary } from '@shared/sessions'
-import { formatRelative, formatTokens, projectShortName } from '../../lib/format'
+import { useFormat } from '../../lib/format'
+import { useI18n } from '../../lib/i18n'
 
 interface SessionListProps {
   sessions: SessionSummary[]
@@ -12,6 +13,8 @@ interface SessionListProps {
 const ROW_HEIGHT = 64
 
 function SessionList({ sessions, selectedId, onSelect }: SessionListProps): React.JSX.Element {
+  const { t } = useI18n()
+  const fmt = useFormat()
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: sessions.length,
@@ -21,7 +24,7 @@ function SessionList({ sessions, selectedId, onSelect }: SessionListProps): Reac
   })
 
   if (sessions.length === 0) {
-    return <div className="p-6 text-center text-[var(--fg-muted)]">没有会话</div>
+    return <div className="p-6 text-center text-[var(--fg-muted)]">{t('sessions.noSessions')}</div>
   }
 
   return (
@@ -48,11 +51,11 @@ function SessionList({ sessions, selectedId, onSelect }: SessionListProps): Reac
               </div>
               <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--fg-muted)]">
                 <span className="max-w-[40%] truncate" title={s.projectPath ?? ''}>
-                  {projectShortName(s.projectPath)}
+                  {fmt.projectShortName(s.projectPath)}
                 </span>
-                <span>{formatRelative(s.updatedAt)}</span>
-                <span>{s.messageCount} 条</span>
-                <span>↓{formatTokens(s.outputTokens)}</span>
+                <span>{fmt.formatRelative(s.updatedAt)}</span>
+                <span>{t('sessions.messageCountShort', { n: s.messageCount })}</span>
+                <span>↓{fmt.formatTokens(s.outputTokens)}</span>
               </div>
             </button>
           )

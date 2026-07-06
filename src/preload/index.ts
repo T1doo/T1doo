@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import { IPC, IPC_EVENTS, IPC_SEND } from '../shared/ipc'
 import type { NavigateRequest, T1dooApi } from '../shared/api'
-import type { AppSettings } from '../shared/types'
+import type { AppSettings, UpdaterState } from '../shared/types'
 import type { SyncProgress } from '../shared/sessions'
 import type { ClaudeStatusEvent, TerminalInfo } from '../shared/terminals'
 import type { LauncherState } from '../shared/launcher'
@@ -24,7 +24,14 @@ const api: T1dooApi = {
     onUpdated: (cb) => subscribe<AppSettings>(IPC_EVENTS.SettingsUpdated, cb)
   },
   app: {
-    info: () => ipcRenderer.invoke(IPC.AppInfo)
+    info: () => ipcRenderer.invoke(IPC.AppInfo),
+    probeClaude: () => ipcRenderer.invoke(IPC.AppProbeClaude)
+  },
+  updater: {
+    getState: () => ipcRenderer.invoke(IPC.UpdaterGetState),
+    check: () => ipcRenderer.invoke(IPC.UpdaterCheck),
+    install: () => ipcRenderer.invoke(IPC.UpdaterInstall),
+    onState: (cb) => subscribe<UpdaterState>(IPC_EVENTS.UpdaterState, cb)
   },
   sessions: {
     list: (filter) => ipcRenderer.invoke(IPC.SessionsList, filter),

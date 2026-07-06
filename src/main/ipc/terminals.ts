@@ -1,5 +1,6 @@
 import { dialog, ipcMain } from 'electron'
 import { IPC, IPC_SEND } from '../../shared/ipc'
+import { t } from '../services/i18n'
 import type { BackendProfileInput } from '../../shared/backend'
 import type { TerminalProfile } from '../../shared/terminals'
 import type { UsageStats } from '../../shared/api'
@@ -22,7 +23,7 @@ export function registerTerminalsIpc(deps: {
   ipcMain.handle(IPC.TermAttach, (_e, id: string) => terminals.attach(id))
   ipcMain.handle(IPC.TermPickCwd, async (_e, defaultPath?: string) => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
-      title: '选择工作目录',
+      title: t('sys.dialog.pickCwd'),
       defaultPath,
       properties: ['openDirectory']
     })

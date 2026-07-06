@@ -5,6 +5,7 @@ import { resolveClaudeCommand } from '../terminal/claude-cmd'
 import { buildClaudeEnv } from '../backend/env'
 import type { BackendProfilesService } from '../backend/profiles'
 import { LineSplitter, handleStreamJsonLine, type StreamResult } from './stream-json'
+import { t } from '../i18n'
 
 /**
  * Engine A：`cli`（默认，§7.5.1）。
@@ -90,7 +91,7 @@ export class CliChatEngine {
         return
       }
       if (proc.pending) {
-        reject(new Error('该对话已有回合进行中'))
+        reject(new Error(t('err.turnInProgress')))
         return
       }
       proc.pending = { resolve, reject, onDelta, buffer: '', sawDelta: false, stopped: false }
@@ -98,7 +99,7 @@ export class CliChatEngine {
         if (err && proc.pending) {
           const pending = proc.pending
           proc.pending = null
-          pending.reject(new Error(`写入 claude 进程失败：${err.message}`))
+          pending.reject(new Error(t('err.claudeStdinWriteFailed', { message: err.message })))
           this.disposeConv(convId)
         }
       })
@@ -154,15 +155,17 @@ export class CliChatEngine {
       proc.stderrTail = (proc.stderrTail + chunk).slice(-4000)
     })
     child.on('error', (err) => {
-      this.failPending(proc, `claude 进程启动失败：${err.message}`)
+      this.failPending(proc, t('err.claudeSpawnFailed', { message: err.message }))
       this.procs.delete(convId)
     })
     child.on('close', (code) => {
       proc.splitter.flush((line) => this.handleLine(proc, line))
       if (proc.pending) {
+        const base = t('err.claudeExitedUnexpected', { code: code ?? '?' })
+        const tail = proc.stderrTail.trim().slice(-300)
         const msg = proc.pending.stopped
-          ? '已停止'
-          : `claude 进程意外退出（code=${code ?? '?'}）${proc.stderrTail ? `：${proc.stderrTail.trim().slice(-300)}` : ''}`
+          ? t('err.stopped')
+          : `${base}${tail ? t('err.detailSuffix', { detail: tail }) : ''}`
         this.failPending(proc, msg)
       }
       if (this.procs.get(convId) === proc) this.procs.delete(convId)
@@ -201,8 +204,9 @@ export class CliChatEngine {
     if (!pending) return
     proc.pending = null
     if (r.isError) {
-      const detail = r.resultText || proc.stderrTail.trim().slice(-300) || r.subtype || '未知错误'
-      pending.reject(new Error(`claude 返回错误：${detail}`))
+      const detail =
+        r.resultText || proc.stderrTail.trim().slice(-300) || r.subtype || t('common.unknownError')
+      pending.reject(new Error(t('err.claudeReturnedError', { detail })))
       return
     }
     pending.resolve({
