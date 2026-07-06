@@ -4,6 +4,7 @@ import { IPC } from '../../shared/ipc'
 import { sessionToMarkdown } from '../services/claude/export'
 import { resumeSessionExternal } from '../services/claude/resume'
 import { streamCompleteLines } from '../services/claude/reader'
+import { t } from '../services/i18n'
 import type { ExportFormat, SessionFilter } from '../../shared/sessions'
 import type { SessionsDao } from '../db/dao'
 import type { ClaudeDataService } from '../services/claude/sync'
@@ -48,10 +49,10 @@ export function registerSessionsIpc(
 
   ipcMain.handle(IPC.SessionsExport, async (_e, id: string, fmt: ExportFormat) => {
     const summary = dao.getSessionSummary(id)
-    if (!summary) throw new Error(`会话不存在：${id}`)
+    if (!summary) throw new Error(t('err.sessionNotFound', { id }))
     const safeTitle = summary.title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 60) || id
     const { canceled, filePath } = await dialog.showSaveDialog({
-      title: '导出会话',
+      title: t('sys.dialog.exportSession'),
       defaultPath: `${safeTitle}.${fmt}`,
       filters:
         fmt === 'md'
@@ -65,7 +66,7 @@ export function registerSessionsIpc(
       await writeFile(filePath, sessionToMarkdown(detail, true), 'utf8')
     } else {
       const paths = dao.getSessionPath(id)
-      if (!paths?.jsonlPath) throw new Error(`会话缺少 JSONL 路径：${id}`)
+      if (!paths?.jsonlPath) throw new Error(t('err.sessionNoJsonl', { id }))
       const rows: unknown[] = []
       await streamCompleteLines(paths.jsonlPath, 0, (line) => {
         try {

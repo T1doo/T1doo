@@ -7,6 +7,7 @@ import type { BackendProfilesService } from '../backend/profiles'
 import { resolveClaudeCommand } from '../terminal/claude-cmd'
 import { buildClaudeEnv } from '../backend/env'
 import { LineSplitter, handleStreamJsonLine } from './stream-json'
+import { t } from '../i18n'
 
 /**
  * F5 后台任务队列最小闭环（§7.5.2）：
@@ -77,8 +78,10 @@ export class TaskQueue {
 
   enqueue(spec: TaskSpec): TaskInfo {
     const prompt = spec.prompt.trim()
-    if (!prompt) throw new Error('任务描述不能为空')
-    if (!spec.cwd || !existsSync(spec.cwd)) throw new Error(`工作目录不存在：${spec.cwd}`)
+    if (!prompt) throw new Error(t('err.taskPromptEmpty'))
+    if (!spec.cwd || !existsSync(spec.cwd)) {
+      throw new Error(t('err.cwdNotFound', { cwd: spec.cwd }))
+    }
 
     const task = this.opts.dao.insertTask({
       id: randomUUID(),
@@ -195,7 +198,7 @@ export class TaskQueue {
     const appendOutput = (text: string): void => {
       run.output += text
       if (run.output.length > MAX_OUTPUT_CHARS) {
-        run.output = `…（输出过长，头部已截断）\n${run.output.slice(-MAX_OUTPUT_CHARS)}`
+        run.output = `${t('err.outputTruncated')}\n${run.output.slice(-MAX_OUTPUT_CHARS)}`
       }
     }
 
@@ -214,7 +217,7 @@ export class TaskQueue {
             outputTokens: r.outputTokens,
             numTurns: r.numTurns,
             durationMs: r.durationMs,
-            error: r.isError ? (r.resultText ?? r.subtype ?? '任务执行失败') : null
+            error: r.isError ? (r.resultText ?? r.subtype ?? t('err.taskFailed')) : null
           })
         }
       })
@@ -229,17 +232,21 @@ export class TaskQueue {
     child.on('error', (err) => {
       splitter.flush(handleLine)
       if (!sawResult) {
-        this.finish(task.id, { status: 'failed', error: `进程启动失败：${err.message}` })
+        this.finish(task.id, {
+          status: 'failed',
+          error: t('err.processSpawnFailed', { message: err.message })
+        })
       }
     })
     child.on('close', (code) => {
       splitter.flush(handleLine)
       if (!sawResult) {
+        const tail = stderrTail.trim().slice(-300)
         this.finish(task.id, {
           status: run.cancelled ? 'cancelled' : 'failed',
           error: run.cancelled
             ? null
-            : `claude 进程退出（code=${code ?? '?'}）${stderrTail ? `：${stderrTail.trim().slice(-300)}` : ''}`
+            : `${t('err.claudeExited', { code: code ?? '?' })}${tail ? t('err.detailSuffix', { detail: tail }) : ''}`
         })
       }
     })

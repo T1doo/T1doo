@@ -8,9 +8,10 @@ import type { LauncherState } from '../shared/launcher'
 import { WindowManager } from './core/window-manager'
 import { LauncherWindow } from './core/launcher-window'
 import { LauncherShortcut } from './core/shortcut'
-import { createTray } from './core/tray'
+import { createTray, refreshTrayMenu } from './core/tray'
 import { applyAutoLaunch } from './core/auto-launch'
 import { SettingsService } from './services/settings'
+import { setAppLocale, t } from './services/i18n'
 import { registerIpcHandlers } from './ipc'
 import { registerSessionsIpc } from './ipc/sessions'
 import { registerTerminalsIpc } from './ipc/terminals'
@@ -87,9 +88,11 @@ if (!gotLock) {
     })
 
     nativeTheme.themeSource = settings.get().theme
+    setAppLocale(settings.get().language)
     applyAutoLaunch(settings.get().autoLaunch)
     settings.onChange((s) => {
       nativeTheme.themeSource = s.theme
+      setAppLocale(s.language)
       applyAutoLaunch(s.autoLaunch)
       windows.broadcast(IPC_EVENTS.SettingsUpdated, s)
     })
@@ -161,7 +164,7 @@ if (!gotLock) {
       notify: (task) => {
         if (!settings.get().notifyTaskDone || !Notification.isSupported()) return
         const notification = new Notification({
-          title: task.status === 'done' ? '后台任务完成' : '后台任务失败',
+          title: task.status === 'done' ? t('notify.taskDone') : t('notify.taskFailed'),
           body: task.prompt.slice(0, 120),
           silent: false
         })
@@ -244,11 +247,19 @@ if (!gotLock) {
       emitState: emitLauncherState
     })
 
-    createTray({
+    const trayActions = {
       onShow: () => windows.showMainWindow(),
       onQuit: () => {
         windows.setQuitting(true)
         app.quit()
+      }
+    }
+    const tray = createTray(trayActions)
+    let currentLang = settings.get().language
+    settings.onChange((s) => {
+      if (s.language !== currentLang) {
+        currentLang = s.language
+        refreshTrayMenu(tray, trayActions)
       }
     })
 

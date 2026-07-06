@@ -7,18 +7,21 @@ import ChatPage from './pages/ChatPage'
 import TasksPage from './pages/TasksPage'
 import { AppNavContext, type AppNav } from './lib/app-nav'
 import type { PageId } from './lib/app-nav'
+import { useI18n } from './lib/i18n'
+import type { I18nKey } from '@shared/i18n'
 
 // F4 文件中枢已彻底废弃（2026-07-05，§14.2）：导航不再保留「文件」入口
 const NAV = [
-  { id: 'dashboard', label: '指挥台' },
-  { id: 'sessions', label: '会话' },
-  { id: 'terminals', label: '终端' },
-  { id: 'chat', label: '对话' },
-  { id: 'tasks', label: '任务' },
-  { id: 'settings', label: '设置' }
-] as const satisfies readonly { id: PageId; label: string }[]
+  { id: 'dashboard', labelKey: 'nav.dashboard' },
+  { id: 'sessions', labelKey: 'nav.sessions' },
+  { id: 'terminals', labelKey: 'nav.terminals' },
+  { id: 'chat', labelKey: 'nav.chat' },
+  { id: 'tasks', labelKey: 'nav.tasks' },
+  { id: 'settings', labelKey: 'nav.settings' }
+] as const satisfies readonly { id: PageId; labelKey: I18nKey }[]
 
 function App(): React.JSX.Element {
+  const { t } = useI18n()
   const [page, setPage] = useState<PageId>('dashboard')
   const [focusRequest, setFocusRequest] = useState<{ terminalId: string; seq: number } | null>(null)
   const [sessionFocus, setSessionFocus] = useState<{ sessionId: string; seq: number } | null>(null)
@@ -81,7 +84,7 @@ function App(): React.JSX.Element {
                       : 'text-[var(--fg-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg)]'
                   }`}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </button>
               </li>
             ))}

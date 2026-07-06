@@ -2,6 +2,7 @@ import Store from 'electron-store'
 import { safeStorage } from 'electron'
 import type { AiApiConfig, AiApiConfigInput } from '../../../shared/ai'
 import { DEFAULT_API_MODEL } from '../../../shared/ai'
+import { t } from '../i18n'
 
 interface AiApiStoreShape {
   /** safeStorage(DPAPI) 密文 base64；明文永不落盘（验收②） */
@@ -33,7 +34,7 @@ export class AiApiConfigService {
         this.store.set('apiKeyEnc', null)
       } else {
         if (!safeStorage.isEncryptionAvailable()) {
-          throw new Error('系统加密（DPAPI）不可用，拒绝保存明文 API Key')
+          throw new Error(t('err.dpapiApiKey'))
         }
         this.store.set('apiKeyEnc', safeStorage.encryptString(input.apiKey).toString('base64'))
       }

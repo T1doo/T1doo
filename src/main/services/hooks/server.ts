@@ -6,6 +6,7 @@ import { dirname, join } from 'path'
 import Store from 'electron-store'
 import type { HooksState } from '../../../shared/terminals'
 import { buildHookCommand, hasOurHooks, mergeHooks, removeHooks } from './settings-file'
+import { t } from '../i18n'
 
 /** hooks 上报的载荷（stdin JSON 原样转发，字段 2026-07-04 官方文档核实） */
 export interface HookPayload {
@@ -148,7 +149,7 @@ export class HooksService {
     if (!raw.trim()) return {}
     const parsed: unknown = JSON.parse(raw) // 解析失败向上抛：绝不覆盖读不懂的用户配置
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('settings.json 结构异常（非对象），拒绝写入')
+      throw new Error(t('err.hooksSettingsMalformed'))
     }
     return parsed as Record<string, unknown>
   }
@@ -161,7 +162,7 @@ export class HooksService {
   private register(): void {
     const port = this.store.get('port')
     const token = this.store.get('token')
-    if (!port || !token) throw new Error('hooks 端口/token 未初始化')
+    if (!port || !token) throw new Error(t('err.hooksNotInitialized'))
     const settings = this.readSettings()
     if (existsSync(this.settingsPath)) {
       copyFileSync(this.settingsPath, `${this.settingsPath}.bak-t1doo`)

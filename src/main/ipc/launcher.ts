@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { IPC, IPC_SEND } from '../../shared/ipc'
+import { t } from '../services/i18n'
 import type { LauncherItem, LauncherState } from '../../shared/launcher'
 import type { LauncherService } from '../services/launcher/service'
 
@@ -19,7 +20,7 @@ export function registerLauncherIpc(opts: {
   ipcMain.handle(IPC.LauncherExecute, async (_e, item: LauncherItem) => {
     // 白名单校验最小载荷形状，防渲染层传畸形对象
     if (!item || typeof item.kind !== 'string' || typeof item.target !== 'string') {
-      return { ok: false, message: '无效条目' }
+      return { ok: false, message: t('err.launcherInvalidItem') }
     }
     return service.execute(item)
   })

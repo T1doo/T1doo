@@ -4,7 +4,8 @@ import type { SyncProgress } from '@shared/sessions'
 import SessionList from '../components/sessions/SessionList'
 import SearchResults from '../components/sessions/SearchResults'
 import SessionDetail from '../components/sessions/SessionDetail'
-import { projectShortName } from '../lib/format'
+import { useFormat } from '../lib/format'
+import { useI18n } from '../lib/i18n'
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value)
@@ -21,6 +22,8 @@ interface SessionsPageProps {
 }
 
 function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
+  const { t } = useI18n()
+  const fmt = useFormat()
   const queryClient = useQueryClient()
   const [q, setQ] = useState('')
   const debouncedQ = useDebounced(q.trim(), 250)
@@ -85,7 +88,7 @@ function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="全文搜索所有会话…"
+            placeholder={t('sessions.searchPlaceholder')}
             className="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 outline-none focus:border-[var(--accent)]"
           />
           <div className="flex items-center gap-2">
@@ -94,10 +97,15 @@ function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
               onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : undefined)}
               className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-[13px]"
             >
-              <option value="">全部项目（{projectsQuery.data?.length ?? 0}）</option>
+              <option value="">
+                {t('sessions.allProjects', { count: projectsQuery.data?.length ?? 0 })}
+              </option>
               {projectsQuery.data?.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {projectShortName(p.path)}（{p.sessionCount}）
+                  {t('sessions.projectOption', {
+                    name: fmt.projectShortName(p.path),
+                    count: p.sessionCount
+                  })}
                 </option>
               ))}
             </select>
@@ -108,14 +116,14 @@ function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
                 onChange={(e) => setPinnedOnly(e.target.checked)}
                 className="accent-[var(--accent)]"
               />
-              仅收藏
+              {t('sessions.pinnedOnly')}
             </label>
           </div>
         </div>
 
         {progress && (
           <div className="border-b border-[var(--border)] px-3 py-1.5 text-xs text-[var(--fg-muted)]">
-            正在索引会话… {progress.done}/{progress.total}
+            {t('sessions.indexing', { done: progress.done, total: progress.total })}
             <div className="mt-1 h-1 overflow-hidden rounded bg-[var(--bg-hover)]">
               <div
                 className="h-full bg-[var(--accent)] transition-all"
@@ -134,7 +142,7 @@ function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
             onSelect={(sid, uuid) => select(sid, uuid)}
           />
         ) : sessionsQuery.isLoading ? (
-          <div className="p-6 text-center text-[var(--fg-muted)]">加载中…</div>
+          <div className="p-6 text-center text-[var(--fg-muted)]">{t('common.loading')}</div>
         ) : (
           <SessionList
             sessions={sessionsQuery.data ?? []}
@@ -149,7 +157,7 @@ function SessionsPage({ focusRequest }: SessionsPageProps): React.JSX.Element {
           <SessionDetail sessionId={selectedId} targetUuid={targetUuid} />
         ) : (
           <div className="flex h-full items-center justify-center text-[var(--fg-muted)]">
-            选择一个会话查看回放
+            {t('sessions.selectToView')}
           </div>
         )}
       </section>

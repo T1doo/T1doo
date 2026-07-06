@@ -3,27 +3,34 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TaskInfo, TaskStatus } from '@shared/ai'
 import type { BackendProfileView } from '@shared/backend'
 import type { PermissionMode } from '@shared/terminals'
+import type { I18nKey } from '@shared/i18n'
 import { useAppNav } from '../lib/app-nav'
-import { formatDateTime, formatTokens } from '../lib/format'
+import { formatTokens, useFormat } from '../lib/format'
+import { useI18n } from '../lib/i18n'
 
-const STATUS_META: Record<TaskStatus, { label: string; cls: string }> = {
-  queued: { label: '排队中', cls: 'bg-[var(--bg-hover)] text-[var(--fg-muted)]' },
-  running: { label: '执行中', cls: 'bg-blue-500/15 text-blue-400' },
-  done: { label: '完成', cls: 'bg-green-500/15 text-green-400' },
-  failed: { label: '失败', cls: 'bg-red-500/15 text-red-400' },
-  cancelled: { label: '已取消', cls: 'bg-[var(--bg-hover)] text-[var(--fg-muted)]' }
+const STATUS_META: Record<TaskStatus, { labelKey: I18nKey; cls: string }> = {
+  queued: { labelKey: 'tasks.status.queued', cls: 'bg-[var(--bg-hover)] text-[var(--fg-muted)]' },
+  running: { labelKey: 'tasks.status.running', cls: 'bg-blue-500/15 text-blue-400' },
+  done: { labelKey: 'tasks.status.done', cls: 'bg-green-500/15 text-green-400' },
+  failed: { labelKey: 'tasks.status.failed', cls: 'bg-red-500/15 text-red-400' },
+  cancelled: {
+    labelKey: 'tasks.status.cancelled',
+    cls: 'bg-[var(--bg-hover)] text-[var(--fg-muted)]'
+  }
 }
 
-const PERMISSION_MODES: { value: PermissionMode; label: string }[] = [
-  { value: 'default', label: 'default（保守，默认）' },
-  { value: 'acceptEdits', label: 'acceptEdits（自动接受编辑）' },
-  { value: 'plan', label: 'plan（只做计划）' },
-  { value: 'dontAsk', label: 'dontAsk' },
-  { value: 'auto', label: 'auto' },
-  { value: 'bypassPermissions', label: 'bypassPermissions（危险）' }
+const PERMISSION_MODES: { value: PermissionMode; labelKey: I18nKey }[] = [
+  { value: 'default', labelKey: 'tasks.permission.default' },
+  { value: 'acceptEdits', labelKey: 'tasks.permission.acceptEdits' },
+  { value: 'plan', labelKey: 'tasks.permission.plan' },
+  { value: 'dontAsk', labelKey: 'tasks.permission.dontAsk' },
+  { value: 'auto', labelKey: 'tasks.permission.auto' },
+  { value: 'bypassPermissions', labelKey: 'tasks.permission.bypassPermissions' }
 ]
 
 function TasksPage(): React.JSX.Element {
+  const { t } = useI18n()
+  const fmt = useFormat()
   const queryClient = useQueryClient()
   const nav = useAppNav()
   const [prompt, setPrompt] = useState('')
@@ -76,16 +83,16 @@ function TasksPage(): React.JSX.Element {
   const submit = async (): Promise<void> => {
     setFormError(null)
     if (!prompt.trim()) {
-      setFormError('任务描述不能为空')
+      setFormError(t('tasks.errPromptRequired'))
       return
     }
     if (!cwd.trim()) {
-      setFormError('请选择工作目录')
+      setFormError(t('tasks.errCwdRequired'))
       return
     }
     if (permissionMode === 'bypassPermissions') {
       // §7.5.2：bypassPermissions 双重确认
-      if (!window.confirm('bypassPermissions 会跳过全部权限确认，Claude 可无限制修改文件与执行命令。确定继续？')) {
+      if (!window.confirm(t('tasks.bypassConfirm'))) {
         return
       }
     }
@@ -115,14 +122,14 @@ function TasksPage(): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col p-8">
-      <h1 className="mb-4 text-xl font-semibold">任务队列</h1>
+      <h1 className="mb-4 text-xl font-semibold">{t('tasks.title')}</h1>
 
       {/* 提交表单（§7.5.2 最小闭环：提交 → 后台执行 → 通知 → 查看结果） */}
       <section className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4">
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="任务描述（将派发给无头 Claude Code 在后台执行）…"
+          placeholder={t('tasks.promptPlaceholder')}
           rows={3}
           data-testid="task-prompt"
           className="w-full resize-none rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--accent)]"
@@ -132,7 +139,7 @@ function TasksPage(): React.JSX.Element {
             <input
               value={cwd}
               onChange={(e) => setCwd(e.target.value)}
-              placeholder="工作目录"
+              placeholder={t('tasks.cwdPlaceholder')}
               data-testid="task-cwd"
               className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
             />
@@ -141,7 +148,7 @@ function TasksPage(): React.JSX.Element {
               onClick={() => void pickCwd()}
               className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[var(--fg-muted)] hover:text-[var(--fg)]"
             >
-              浏览…
+              {t('tasks.browse')}
             </button>
           </div>
           <select
@@ -149,7 +156,7 @@ function TasksPage(): React.JSX.Element {
             onChange={(e) => setBackendProfileId(e.target.value)}
             className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
           >
-            <option value="">默认后端档案</option>
+            <option value="">{t('tasks.defaultBackend')}</option>
             {(backendsQuery.data ?? []).map((b: BackendProfileView) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -167,21 +174,21 @@ function TasksPage(): React.JSX.Element {
           >
             {PERMISSION_MODES.map((m) => (
               <option key={m.value} value={m.value}>
-                {m.label}
+                {t(m.labelKey)}
               </option>
             ))}
           </select>
           <input
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            placeholder="模型（可选）"
+            placeholder={t('tasks.modelPlaceholder')}
             className="w-28 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
           />
           <input
             value={maxBudget}
             onChange={(e) => setMaxBudget(e.target.value)}
-            placeholder="预算 $（可选）"
-            title="--max-budget-usd 成本闸（API 计费后端适用）"
+            placeholder={t('tasks.budgetPlaceholder')}
+            title={t('tasks.budgetTitle')}
             className="w-28 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
           />
           <button
@@ -190,7 +197,7 @@ function TasksPage(): React.JSX.Element {
             onClick={() => void submit()}
             className="rounded-md bg-[var(--accent)] px-4 py-1.5 text-white"
           >
-            提交任务
+            {t('tasks.submit')}
           </button>
         </div>
         {formError && (
@@ -203,93 +210,93 @@ function TasksPage(): React.JSX.Element {
       {/* 任务列表 */}
       <div className="min-h-0 flex-1 overflow-auto" data-testid="task-list">
         {tasks.length === 0 ? (
-          <div className="pt-8 text-center text-[var(--fg-muted)]">
-            暂无任务。提交一个任务描述，T1doo 会派发给无头 Claude Code 后台执行，完成后通知你。
-          </div>
+          <div className="pt-8 text-center text-[var(--fg-muted)]">{t('tasks.empty')}</div>
         ) : (
           <ul className="space-y-3">
-            {tasks.map((t: TaskInfo) => {
-              const meta = STATUS_META[t.status]
+            {tasks.map((task: TaskInfo) => {
+              const meta = STATUS_META[task.status]
               return (
                 <li
-                  key={t.id}
+                  key={task.id}
                   className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4"
                 >
                   <div className="flex items-start gap-3">
                     <span className={`mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs ${meta.cls}`}>
-                      {meta.label}
+                      {t(meta.labelKey)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="break-words">{t.prompt}</div>
+                      <div className="break-words">{task.prompt}</div>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--fg-muted)]">
-                        <span>{t.cwd}</span>
-                        <span>{formatDateTime(t.createdAt)}</span>
-                        {t.model && <span>模型 {t.model}</span>}
-                        {t.permissionMode && t.permissionMode !== 'default' && (
-                          <span>权限 {t.permissionMode}</span>
+                        <span>{task.cwd}</span>
+                        <span>{fmt.formatDateTime(task.createdAt)}</span>
+                        {task.model && <span>{t('tasks.modelInfo', { name: task.model })}</span>}
+                        {task.permissionMode && task.permissionMode !== 'default' && (
+                          <span>{t('tasks.permissionInfo', { mode: task.permissionMode })}</span>
                         )}
-                        {t.numTurns != null && <span>{t.numTurns} 回合</span>}
-                        {t.outputTokens != null && (
+                        {task.numTurns != null && (
+                          <span>{t('tasks.turns', { n: task.numTurns })}</span>
+                        )}
+                        {task.outputTokens != null && (
                           <span>
-                            {formatTokens(t.inputTokens ?? 0)} in / {formatTokens(t.outputTokens)}{' '}
-                            out
+                            {formatTokens(task.inputTokens ?? 0)} in /{' '}
+                            {formatTokens(task.outputTokens)} out
                           </span>
                         )}
-                        {t.totalCostUsd != null && t.backendProfileId == null && (
-                          <span title="claude result 事件回报的名义成本；订阅态仅供参考（§7.6）">
-                            ≈ ${t.totalCostUsd.toFixed(4)}
+                        {task.totalCostUsd != null && task.backendProfileId == null && (
+                          <span title={t('tasks.costTitle')}>
+                            ≈ ${task.totalCostUsd.toFixed(4)}
                           </span>
                         )}
                       </div>
-                      {t.error && (
-                        <div className="mt-1 text-xs break-words text-red-400">{t.error}</div>
+                      {task.error && (
+                        <div className="mt-1 text-xs break-words text-red-400">{task.error}</div>
                       )}
-                      {t.status === 'done' && t.resultSummary && (
+                      {task.status === 'done' && task.resultSummary && (
                         <div className="mt-2 line-clamp-3 text-sm whitespace-pre-wrap text-[var(--fg-muted)]">
-                          {t.resultSummary}
+                          {task.resultSummary}
                         </div>
                       )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1 text-sm">
-                      {(t.status === 'queued' || t.status === 'running') && (
+                      {(task.status === 'queued' || task.status === 'running') && (
                         <button
                           type="button"
-                          onClick={() => void cancel(t.id)}
+                          onClick={() => void cancel(task.id)}
                           className="rounded-md border border-red-500/40 px-2 py-1 text-red-400 hover:bg-red-500/10"
                         >
-                          取消
+                          {t('common.cancel')}
                         </button>
                       )}
-                      {t.status !== 'queued' && (
+                      {task.status !== 'queued' && (
                         <button
                           type="button"
                           onClick={() => {
                             setOutputText('')
-                            setOutputFor(outputFor === t.id ? null : t.id)
+                            setOutputFor(outputFor === task.id ? null : task.id)
                           }}
                           className="rounded-md border border-[var(--border)] px-2 py-1 text-[var(--fg-muted)] hover:text-[var(--fg)]"
                         >
-                          {outputFor === t.id ? '收起输出' : '查看输出'}
+                          {outputFor === task.id ? t('tasks.hideOutput') : t('tasks.viewOutput')}
                         </button>
                       )}
-                      {t.sessionId && t.status === 'done' && (
+                      {task.sessionId && task.status === 'done' && (
                         <button
                           type="button"
-                          title="任务产生的会话已进入会话中心"
-                          onClick={() => nav.goSession(t.sessionId!)}
+                          title={t('tasks.viewSessionTitle')}
+                          onClick={() => nav.goSession(task.sessionId!)}
                           className="rounded-md border border-[var(--border)] px-2 py-1 text-[var(--fg-muted)] hover:text-[var(--fg)]"
                         >
-                          查看会话
+                          {t('tasks.viewSession')}
                         </button>
                       )}
                     </div>
                   </div>
-                  {outputFor === t.id && (
+                  {outputFor === task.id && (
                     <pre
                       data-testid="task-output"
                       className="mt-3 max-h-72 overflow-auto rounded-md bg-[var(--bg)] p-3 text-xs whitespace-pre-wrap"
                     >
-                      {outputText || '（暂无输出）'}
+                      {outputText || t('tasks.noOutput')}
                     </pre>
                   )}
                 </li>

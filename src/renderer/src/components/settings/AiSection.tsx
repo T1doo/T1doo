@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { API_MODELS } from '@shared/ai'
+import { useI18n } from '../../lib/i18n'
 
 /** 设置页 · AI 对话区块：API 引擎 Key（DPAPI 加密落盘）/ baseUrl / 默认模型（§7.5.1） */
 function AiSection(): React.JSX.Element {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const [keyInput, setKeyInput] = useState('')
   const [baseUrlInput, setBaseUrlInput] = useState<string | null>(null)
@@ -24,7 +26,7 @@ function AiSection(): React.JSX.Element {
     try {
       await window.t1doo.ai.configSet(input)
       await queryClient.invalidateQueries({ queryKey: ['ai-config'] })
-      setMessage('已保存')
+      setMessage(t('settingsAi.saved'))
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
     }
@@ -32,11 +34,8 @@ function AiSection(): React.JSX.Element {
 
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
-      <h2 className="mb-1 font-medium">AI 对话（API 引擎）</h2>
-      <p className="mb-3 text-xs text-[var(--fg-muted)]">
-        CLI 引擎零配置（复用 Claude Code 登录态/后端档案）；API 引擎直连 Anthropic，Key 经
-        Windows DPAPI 加密存储，明文不落盘。
-      </p>
+      <h2 className="mb-1 font-medium">{t('settingsAi.title')}</h2>
+      <p className="mb-3 text-xs text-[var(--fg-muted)]">{t('settingsAi.desc')}</p>
 
       <div className="space-y-3 text-sm">
         <div>
@@ -44,10 +43,10 @@ function AiSection(): React.JSX.Element {
             API Key{' '}
             {config?.hasKey ? (
               <span data-testid="ai-key-state" className="text-green-400">
-                已配置（尾号 …{config.keyTail}）
+                {t('settingsAi.key.configured', { tail: config.keyTail ?? '' })}
               </span>
             ) : (
-              <span data-testid="ai-key-state">未配置</span>
+              <span data-testid="ai-key-state">{t('settingsAi.key.notConfigured')}</span>
             )}
           </div>
           <div className="flex gap-2">
@@ -68,26 +67,24 @@ function AiSection(): React.JSX.Element {
               }}
               className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-white disabled:opacity-40"
             >
-              保存
+              {t('common.save')}
             </button>
             {config?.hasKey && (
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm('清除已保存的 API Key？')) void apply({ apiKey: '' })
+                  if (window.confirm(t('settingsAi.key.clearConfirm'))) void apply({ apiKey: '' })
                 }}
                 className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)]"
               >
-                清除
+                {t('settingsAi.key.clear')}
               </button>
             )}
           </div>
         </div>
 
         <div>
-          <div className="mb-1 text-[var(--fg-muted)]">
-            自定义 baseUrl（可选，Anthropic 兼容网关）
-          </div>
+          <div className="mb-1 text-[var(--fg-muted)]">{t('settingsAi.baseUrl')}</div>
           <input
             value={baseUrlInput ?? config?.baseUrl ?? ''}
             onChange={(e) => setBaseUrlInput(e.target.value)}
@@ -100,7 +97,7 @@ function AiSection(): React.JSX.Element {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-[var(--fg-muted)]">默认模型</span>
+          <span className="text-[var(--fg-muted)]">{t('settingsAi.model')}</span>
           <select
             value={config?.model ?? API_MODELS[0].id}
             onChange={(e) => void apply({ model: e.target.value })}

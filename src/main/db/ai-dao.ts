@@ -9,6 +9,7 @@ import type {
   TaskStatus
 } from '../../shared/ai'
 import { SNIPPET_OPEN, SNIPPET_CLOSE, desegmentCjk, segmentCjkForFts, toFtsQuery } from './dao'
+import { t } from '../services/i18n'
 
 interface ConvRow {
   id: string
@@ -206,12 +207,7 @@ export class AiDao {
 
   // ---------- 任务 ----------
 
-  insertTask(t: {
-    id: string
-    spec: TaskSpec
-    sessionId: string
-    ts: number
-  }): TaskInfo {
+  insertTask(t: { id: string; spec: TaskSpec; sessionId: string; ts: number }): TaskInfo {
     this.db
       .prepare(
         `INSERT INTO tasks (id, prompt, cwd, status, model, backend_profile_id, permission_mode,
@@ -311,10 +307,10 @@ export class AiDao {
   failStaleActiveTasks(ts: number): void {
     this.db
       .prepare(
-        `UPDATE tasks SET status = 'failed', finished_at = ?, error = '应用退出导致任务中断'
+        `UPDATE tasks SET status = 'failed', finished_at = ?, error = ?
          WHERE status IN ('queued', 'running')`
       )
-      .run(ts)
+      .run(ts, t('err.taskInterruptedByQuit'))
   }
 
   private toSummary(r: ConvRow): ConversationSummary {

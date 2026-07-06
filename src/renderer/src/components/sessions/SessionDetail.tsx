@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { MessageView, SessionSummary } from '@shared/sessions'
 import MessageItem from './MessageItem'
-import { formatDateTime, formatTokens, projectShortName } from '../../lib/format'
+import { useFormat } from '../../lib/format'
+import { useI18n } from '../../lib/i18n'
 import { useAppNav } from '../../lib/app-nav'
 
 type DetailItem =
@@ -29,6 +30,7 @@ function groupMessages(messages: MessageView[]): DetailItem[] {
 }
 
 function SidechainGroup({ messages }: { messages: MessageView[] }): React.JSX.Element {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   return (
     <div className="mx-4 my-1 rounded-md border border-dashed border-[var(--border)]">
@@ -37,7 +39,7 @@ function SidechainGroup({ messages }: { messages: MessageView[] }): React.JSX.El
         onClick={() => setOpen((v) => !v)}
         className="w-full px-3 py-1.5 text-left text-[13px] text-[var(--fg-muted)] hover:bg-[var(--bg-hover)]"
       >
-        {open ? '▾' : '▸'} 子代理轨迹 · {messages.length} 条
+        {open ? '▾' : '▸'} {t('sessions.sidechainGroup', { n: messages.length })}
       </button>
       {open && (
         <div className="border-t border-dashed border-[var(--border)]">
@@ -57,6 +59,8 @@ interface SessionDetailProps {
 }
 
 function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX.Element {
+  const { t } = useI18n()
+  const fmt = useFormat()
   const nav = useAppNav()
   const detailQuery = useQuery({
     queryKey: ['session', sessionId],
@@ -95,12 +99,12 @@ function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX
   }, [sessionId])
 
   if (detailQuery.isLoading) {
-    return <div className="p-8 text-[var(--fg-muted)]">解析会话全文中…</div>
+    return <div className="p-8 text-[var(--fg-muted)]">{t('sessions.parsing')}</div>
   }
   if (detailQuery.isError || !detailQuery.data) {
     return (
       <div className="p-8 text-[var(--fg-muted)]">
-        无法加载会话：{String(detailQuery.error ?? '未知错误')}
+        {t('sessions.loadError', { error: String(detailQuery.error ?? t('common.unknownError')) })}
       </div>
     )
   }
@@ -125,7 +129,7 @@ function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX
   const doExport = (fmt: 'md' | 'json'): void => {
     void window.t1doo.sessions.export(s.id, fmt).then((path) => {
       if (path) {
-        setExportMsg(`已导出：${path}`)
+        setExportMsg(t('sessions.exported', { path }))
         setTimeout(() => setExportMsg(null), 6000)
       }
     })
@@ -141,7 +145,7 @@ function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX
           <button
             type="button"
             onClick={togglePin}
-            title={isPinned ? '取消收藏' : '收藏'}
+            title={isPinned ? t('sessions.unpin') : t('sessions.pin')}
             className={`rounded-md border border-[var(--border)] px-2 py-1 text-sm ${
               isPinned ? 'text-[var(--accent)]' : 'text-[var(--fg-muted)]'
             } hover:bg-[var(--bg-hover)]`}
@@ -151,15 +155,15 @@ function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX
           <button
             type="button"
             onClick={resumeInApp}
-            title="在内置终端恢复此会话（自动绑定状态感知）"
+            title={t('sessions.resumeTitle')}
             className="rounded-md border border-[var(--accent)] px-3 py-1 text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)]"
           >
-            ▶ 恢复会话
+            ▶ {t('sessions.resume')}
           </button>
           <button
             type="button"
             onClick={() => void window.t1doo.sessions.resumeExternal(s.id)}
-            title="在外部 Windows Terminal 恢复"
+            title={t('sessions.resumeExternalTitle')}
             className="rounded-md border border-[var(--border)] px-2 py-1 text-sm text-[var(--fg-muted)] hover:bg-[var(--bg-hover)]"
           >
             ↗ wt
@@ -169,27 +173,33 @@ function SessionDetail({ sessionId, targetUuid }: SessionDetailProps): React.JSX
             onClick={() => doExport('md')}
             className="rounded-md border border-[var(--border)] px-2 py-1 text-sm text-[var(--fg-muted)] hover:bg-[var(--bg-hover)]"
           >
-            导出 MD
+            {t('sessions.exportMd')}
           </button>
           <button
             type="button"
             onClick={() => doExport('json')}
             className="rounded-md border border-[var(--border)] px-2 py-1 text-sm text-[var(--fg-muted)] hover:bg-[var(--bg-hover)]"
           >
-            导出 JSON
+            {t('sessions.exportJson')}
           </button>
         </div>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[var(--fg-muted)]">
-          <span title={s.projectPath ?? ''}>📁 {projectShortName(s.projectPath)}</span>
+          <span title={s.projectPath ?? ''}>📁 {fmt.projectShortName(s.projectPath)}</span>
           {s.gitBranch && <span>⎇ {s.gitBranch}</span>}
           {s.modelLast && <span>{s.modelLast}</span>}
-          <span>{s.messageCount} 条消息</span>
+          <span>{t('sessions.messageCount', { n: s.messageCount })}</span>
           <span>
-            tokens：↑{formatTokens(s.inputTokens)} ↓{formatTokens(s.outputTokens)}
-            {s.cacheReadTokens > 0 && ` （缓存读 ${formatTokens(s.cacheReadTokens)}）`}
+            {t('sessions.tokens', {
+              input: fmt.formatTokens(s.inputTokens),
+              output: fmt.formatTokens(s.outputTokens)
+            })}
+            {s.cacheReadTokens > 0 &&
+              ` ${t('sessions.cacheRead', { n: fmt.formatTokens(s.cacheReadTokens) })}`}
           </span>
-          <span>{formatDateTime(s.updatedAt)}</span>
-          {detail.badLineCount > 0 && <span>⚠ {detail.badLineCount} 行无法解析已跳过</span>}
+          <span>{fmt.formatDateTime(s.updatedAt)}</span>
+          {detail.badLineCount > 0 && (
+            <span>⚠ {t('sessions.badLines', { n: detail.badLineCount })}</span>
+          )}
         </div>
         {exportMsg && <div className="mt-1 text-xs text-[var(--accent)]">{exportMsg}</div>}
       </header>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ClaudeStatus, TerminalInfo, TerminalProfile } from '@shared/terminals'
 import XtermView, { type XtermViewHandle } from '../components/terminals/XtermView'
 import NewTerminalDialog from '../components/terminals/NewTerminalDialog'
+import { useI18n } from '../lib/i18n'
 
 interface Props {
   visible: boolean
@@ -25,6 +26,7 @@ function statusDotClass(status: ClaudeStatus | null, exited: boolean): string {
 
 /** F2 终端页（§7.2.5）：多标签 + 左右分屏（最多 2 列）+ Ctrl+T/W/F */
 function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
+  const { t } = useI18n()
   const [terms, setTerms] = useState<TerminalInfo[]>([])
   const [order, setOrder] = useState<string[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -135,8 +137,8 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
       <div className="flex items-center gap-1 border-b border-[var(--border)] bg-[var(--bg-panel)] px-2 py-1.5">
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {order.map((id) => {
-            const t = byId(id)
-            if (!t) return null
+            const term = byId(id)
+            if (!term) return null
             const isActive = id === activeTab
             return (
               <div
@@ -158,7 +160,7 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
                 onAuxClick={(e) => {
                   if (e.button === 1) closeTerminal(id)
                 }}
-                title={`${t.cwd}${t.exit ? `（已退出 ${t.exit.code}）` : ''}`}
+                title={`${term.cwd}${term.exit ? t('terminals.exitedSuffix', { code: term.exit.code }) : ''}`}
                 className={`group flex max-w-52 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm transition-colors ${
                   isActive
                     ? 'border-[var(--accent)] bg-[var(--bg-hover)] text-[var(--fg)]'
@@ -166,9 +168,9 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
                 }`}
               >
                 <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass(t.status, t.exit !== null)}`}
+                  className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass(term.status, term.exit !== null)}`}
                 />
-                <span className="truncate">{t.title}</span>
+                <span className="truncate">{term.title}</span>
                 {id === rightId && <span className="shrink-0 text-xs opacity-60">▐</span>}
                 <button
                   type="button"
@@ -188,7 +190,7 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
           type="button"
           onClick={toggleSplit}
           disabled={!activeTab}
-          title={rightId === activeTab ? '取消分屏' : '固定到右侧分屏'}
+          title={t(rightId === activeTab ? 'terminals.unsplit' : 'terminals.pinRight')}
           className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-sm text-[var(--fg-muted)] hover:text-[var(--fg)] disabled:opacity-40"
         >
           ◫
@@ -196,7 +198,7 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
         <button
           type="button"
           onClick={() => setDialogOpen(true)}
-          title="新建终端（Ctrl+T）"
+          title={t('terminals.newWithShortcut')}
           className="shrink-0 rounded-md border border-[var(--accent)] px-2.5 py-1 text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)]"
         >
           ＋
@@ -207,46 +209,46 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
       <div className="relative flex min-h-0 flex-1">
         {terms.length === 0 && (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-[var(--fg-muted)]">
-            <p>还没有终端</p>
+            <p>{t('terminals.empty')}</p>
             <button
               type="button"
               onClick={() => setDialogOpen(true)}
               className="rounded-md border border-[var(--accent)] px-4 py-2 text-[var(--accent)] hover:bg-[var(--bg-hover)]"
             >
-              新建终端（Ctrl+T）
+              {t('terminals.newWithShortcut')}
             </button>
           </div>
         )}
-        {terms.map((t) => {
-          const isLeft = t.id === leftId
-          const isRight = split && t.id === rightId
+        {terms.map((term) => {
+          const isLeft = term.id === leftId
+          const isRight = split && term.id === rightId
           const shown = isLeft || isRight
           return (
             <div
-              key={t.id}
+              key={term.id}
               style={{ order: isRight ? 1 : 0 }}
               className={`${shown ? 'block' : 'hidden'} min-w-0 flex-1 ${
                 isRight ? 'border-l border-[var(--border)]' : ''
               } bg-[var(--bg-panel)] p-1`}
             >
-              {t.exit && (
+              {term.exit && (
                 <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-1 text-xs text-[var(--fg-muted)]">
-                  <span>进程已退出（code {t.exit.code}）——输出保留供回看</span>
+                  <span>{t('terminals.processExited', { code: term.exit.code })}</span>
                   <button
                     type="button"
-                    onClick={() => closeTerminal(t.id)}
+                    onClick={() => closeTerminal(term.id)}
                     className="rounded border border-[var(--border)] px-2 py-0.5 hover:text-[var(--fg)]"
                   >
-                    关闭标签
+                    {t('terminals.closeTab')}
                   </button>
                 </div>
               )}
               <XtermView
-                terminalId={t.id}
+                terminalId={term.id}
                 visible={visible && shown}
                 ref={(h) => {
-                  if (h) viewRefs.current.set(t.id, h)
-                  else viewRefs.current.delete(t.id)
+                  if (h) viewRefs.current.set(term.id, h)
+                  else viewRefs.current.delete(term.id)
                 }}
               />
             </div>
@@ -267,7 +269,7 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
                   viewRefs.current.get(leftId ?? '')?.clearSearch()
                 }
               }}
-              placeholder="终端内搜索"
+              placeholder={t('terminals.searchPlaceholder')}
               className="w-44 rounded border border-transparent bg-[var(--bg)] px-2 py-1 text-sm outline-none focus:border-[var(--accent)]"
             />
             <button

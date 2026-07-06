@@ -2,10 +2,13 @@ import './assets/launcher.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { I18nProvider } from './lib/i18n'
 import LauncherApp from './launcher/LauncherApp'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LauncherApp />
+    <I18nProvider>
+      <LauncherApp />
+    </I18nProvider>
   </StrictMode>
 )

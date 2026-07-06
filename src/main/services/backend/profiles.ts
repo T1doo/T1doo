@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { safeStorage } from 'electron'
 import type { BackendProfileInput, BackendProfileView } from '../../../shared/backend'
 import type { ResolvedBackend } from './env'
+import { t } from '../i18n'
 
 /** 落盘形态：token 只存 safeStorage(DPAPI) 密文的 base64 */
 interface StoredProfile {
@@ -66,7 +67,7 @@ export class BackendProfilesService {
         authTokenEnc = null
       } else {
         if (!safeStorage.isEncryptionAvailable()) {
-          throw new Error('系统加密（DPAPI）不可用，拒绝保存明文 token')
+          throw new Error(t('err.dpapiToken'))
         }
         authTokenEnc = safeStorage.encryptString(input.token).toString('base64')
       }
@@ -74,7 +75,7 @@ export class BackendProfilesService {
 
     const next: StoredProfile = {
       id: existing?.id ?? randomUUID(),
-      name: input.name.trim() || '未命名档案',
+      name: input.name.trim() || t('sys.unnamedProfile'),
       auth: input.auth === 'custom' ? 'custom' : 'subscription',
       baseUrl: input.baseUrl?.trim() || null,
       authTokenEnc,

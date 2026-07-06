@@ -1,4 +1,5 @@
 import { Notification } from 'electron'
+import { t } from '../i18n'
 import type { ClaudeStatus, ClaudeStatusEvent } from '../../../shared/terminals'
 import type { TerminalManager } from '../terminal/manager'
 import type { HookPayload } from './server'
@@ -121,7 +122,7 @@ export class ClaudeStatusTracker {
     const terminal = this.opts.terminals.getBySession(sessionId)
     const message = typeof payload.message === 'string' ? payload.message : null
     const notification = new Notification({
-      title: '会话等待你的输入',
+      title: t('notify.sessionWaiting'),
       body: message ?? terminal?.title ?? payload.cwd?.toString() ?? sessionId,
       silent: false
     })
