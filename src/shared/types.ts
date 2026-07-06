@@ -41,6 +41,25 @@ export interface ClaudeProbeResult {
   version: string | null
 }
 
+/** 自动更新状态（M6 §13：GitHub Releases，提示后安装不强更） */
+export type UpdaterStatus =
+  | 'disabled' // 开发模式/未打包
+  | 'idle'
+  | 'checking'
+  | 'downloading'
+  | 'downloaded'
+  | 'none' // 已是最新
+  | 'error'
+
+export interface UpdaterState {
+  status: UpdaterStatus
+  /** 可用/已下载的新版本号 */
+  version: string | null
+  /** 下载进度 0-100 */
+  percent: number | null
+  error: string | null
+}
+
 export interface AppInfo {
   name: string
   version: string

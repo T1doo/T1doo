@@ -11,6 +11,7 @@ import { LauncherShortcut } from './core/shortcut'
 import { createTray, refreshTrayMenu } from './core/tray'
 import { applyAutoLaunch } from './core/auto-launch'
 import { SettingsService } from './services/settings'
+import { UpdaterService } from './services/updater'
 import { setAppLocale, t } from './services/i18n'
 import { registerIpcHandlers } from './ipc'
 import { registerSessionsIpc } from './ipc/sessions'
@@ -236,7 +237,18 @@ if (!gotLock) {
       }
     })
 
-    registerIpcHandlers(settings)
+    // 自动更新（M6 §13）：打包版启动 30s 后静默检查，"提示后安装"不强更
+    const updater = new UpdaterService({
+      emit: (state) => windows.broadcast(IPC_EVENTS.UpdaterState, state),
+      onBeforeInstall: () => {
+        windows.setQuitting(true)
+        launcherWin.setQuitting(true)
+      },
+      log: (msg) => console.log('[updater]', msg)
+    })
+    setTimeout(() => updater.check(), 30_000)
+
+    registerIpcHandlers(settings, updater)
     registerSessionsIpc(dao, claudeData, terminals)
     registerTerminalsIpc({ terminals, backends, hooks, dao })
     registerAiIpc({ chat, tasks: taskQueue, aiDao, apiConfig })

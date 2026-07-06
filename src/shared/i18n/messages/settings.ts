@@ -29,5 +29,26 @@ export const settings = {
   'settings.notifyTaskDone': {
     zh: '后台任务完成/失败时系统通知',
     en: 'Notify when a background task finishes or fails'
+  },
+
+  // —— 关于与更新（M6 §13） ——
+  'settings.about': { zh: '关于与更新', en: 'About & updates' },
+  'settings.about.version': { zh: '当前版本 {version}', en: 'Version {version}' },
+  'settings.update.check': { zh: '检查更新', en: 'Check for updates' },
+  'settings.update.checking': { zh: '检查中…', en: 'Checking…' },
+  'settings.update.none': { zh: '已是最新版本', en: 'You are up to date' },
+  'settings.update.downloading': {
+    zh: '正在下载 {version}（{percent}%）',
+    en: 'Downloading {version} ({percent}%)'
+  },
+  'settings.update.downloaded': {
+    zh: '新版本 {version} 已就绪',
+    en: 'Version {version} is ready'
+  },
+  'settings.update.install': { zh: '重启并安装', en: 'Restart & install' },
+  'settings.update.error': { zh: '检查更新失败：{error}', en: 'Update check failed: {error}' },
+  'settings.update.disabled': {
+    zh: '开发模式下不可用（打包版从 GitHub Releases 更新）',
+    en: 'Unavailable in dev mode (packaged builds update from GitHub Releases)'
   }
 } as const satisfies NsDict

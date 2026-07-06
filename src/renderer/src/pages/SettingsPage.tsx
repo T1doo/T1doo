@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { AppSettings, Language, ThemeSetting } from '@shared/types'
 import type { I18nKey } from '@shared/i18n'
 import { useI18n } from '../lib/i18n'
+import AboutSection from '../components/settings/AboutSection'
 import BackendProfilesSection from '../components/settings/BackendProfilesSection'
 import HooksSection from '../components/settings/HooksSection'
 import LauncherSection from '../components/settings/LauncherSection'
@@ -138,6 +139,7 @@ function SettingsPage(): React.JSX.Element {
         <LauncherSection />
         <HooksSection />
         <BackendProfilesSection />
+        <AboutSection />
       </div>
     </div>
   )

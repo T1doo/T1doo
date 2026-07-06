@@ -1,4 +1,4 @@
-import type { AppInfo, AppSettings, ClaudeProbeResult } from './types'
+import type { AppInfo, AppSettings, ClaudeProbeResult, UpdaterState } from './types'
 import type {
   ExportFormat,
   ProjectSummary,
@@ -65,6 +65,14 @@ export interface T1dooApi {
     info(): Promise<AppInfo>
     /** 首启引导：探测 claude 命令与版本（5s 超时，不抛错） */
     probeClaude(): Promise<ClaudeProbeResult>
+  }
+  updater: {
+    getState(): Promise<UpdaterState>
+    /** 手动检查更新；返回触发后的即时状态，后续经 onState 推送 */
+    check(): Promise<UpdaterState>
+    /** 重启并安装（仅 downloaded 状态生效） */
+    install(): Promise<void>
+    onState(cb: (state: UpdaterState) => void): () => void
   }
   sessions: {
     list(filter?: SessionFilter): Promise<SessionSummary[]>

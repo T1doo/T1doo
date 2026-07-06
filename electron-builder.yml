@@ -26,3 +26,8 @@ nsis:
   oneClick: true
   perMachine: false
 npmRebuild: false
+# 自动更新源（M6 §13）：仅从固定 GitHub Releases 拉取；draft Release 人工发布
+publish:
+  provider: github
+  owner: T1doo
+  repo: T1doo
