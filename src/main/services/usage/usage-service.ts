@@ -13,8 +13,10 @@ import type { UsageScanState, UsageSource } from '../../../shared/usage'
  * 不动「subagents 不入索引」裁决（§6.3-0）。usage_log 按 message.id REPLACE，重放幂等。
  */
 
-const DEBOUNCE_MS = 300
-const EMIT_DEBOUNCE_MS = 300
+// §7.8.5 预算：日常增量 < 300ms 反映到板块（含防抖）——
+// 文件防抖 150ms（合并一轮交互的连续追加）+ 事件防抖 50ms + 解析写库若干 ms ≈ 210ms
+const DEBOUNCE_MS = 150
+const EMIT_DEBOUNCE_MS = 50
 /** 首扫期间每处理 N 个文件推一次 evt:usage:updated（UI 数字渐进刷新） */
 const SCAN_EMIT_EVERY = 25
 
