@@ -18,11 +18,14 @@ import { registerSessionsIpc } from './ipc/sessions'
 import { registerTerminalsIpc } from './ipc/terminals'
 import { registerLauncherIpc } from './ipc/launcher'
 import { registerAiIpc } from './ipc/ai'
+import { registerUsageIpc } from './ipc/usage'
 import { openDatabase } from './db'
 import { SessionsDao } from './db/dao'
 import { LauncherDao } from './db/launcher-dao'
 import { AiDao } from './db/ai-dao'
+import { UsageDao } from './db/usage-dao'
 import { ClaudeDataService, defaultProjectsDir } from './services/claude/sync'
+import { UsageService } from './services/usage/usage-service'
 import { BackendProfilesService } from './services/backend/profiles'
 import { GlobalSwitchService } from './services/backend/global-switch'
 import { TerminalManager } from './services/terminal/manager'
@@ -49,7 +52,9 @@ if (!gotLock) {
   const windows = new WindowManager(() => settings.get().closeToTray)
   const launcherWin = new LauncherWindow()
   const shortcut = new LauncherShortcut()
+  let dbRef: ReturnType<typeof openDatabase> | null = null
   let claudeData: ClaudeDataService | null = null
+  let usage: UsageService | null = null
   let terminals: TerminalManager | null = null
   let hooks: HooksService | null = null
   let statusTracker: ClaudeStatusTracker | null = null
@@ -75,6 +80,14 @@ if (!gotLock) {
     shortcut.dispose()
     if (appScanTimer) clearInterval(appScanTimer)
     void claudeData?.dispose()
+    void usage?.dispose()
+    // 干净关库触发 WAL 关闭检查点：否则写入长期悬在 -wal 里，
+    // 主文件停更且外部工具打不开（M8 实证）；有语句在飞则跳过（下次启动检查点兜底）
+    try {
+      dbRef?.close()
+    } catch {
+      // 忽略：openDatabase 启动时的 wal_checkpoint(TRUNCATE) 会兜底收拢
+    }
   })
 
   app.on('window-all-closed', () => {
@@ -102,6 +115,7 @@ if (!gotLock) {
     // F1 数据层：SQLite + 会话同步服务
     // T1DOO_DB_PATH / T1DOO_PROJECTS_DIR 仅供开发与 E2E 测试注入隔离环境
     const db = openDatabase(process.env.T1DOO_DB_PATH ?? join(app.getPath('userData'), 't1doo.db'))
+    dbRef = db
     const dao = new SessionsDao(db)
     claudeData = new ClaudeDataService({
       projectsDir: process.env.T1DOO_PROJECTS_DIR ?? defaultProjectsDir(homedir()),
@@ -114,6 +128,16 @@ if (!gotLock) {
         if (hooks && !hooks.getState().running) statusTracker?.touchFromSync(ids)
       },
       log: (msg) => console.log('[claude-sync]', msg)
+    })
+
+    // F9 用量中心：独立采集管道（subagents/wf_* 全覆盖，§7.8.2）
+    const usageDao = new UsageDao(db)
+    usage = new UsageService({
+      projectsDir: process.env.T1DOO_PROJECTS_DIR ?? defaultProjectsDir(homedir()),
+      dao: usageDao,
+      workerPath: scanWorkerPath,
+      emitUpdated: () => windows.broadcast(IPC_EVENTS.UsageUpdated),
+      log: (msg) => console.log('[usage]', msg)
     })
 
     // F2 终端层：后端档案 + PTY 托管 + hooks 状态感知
@@ -163,6 +187,7 @@ if (!gotLock) {
       backends,
       apiConfig,
       emit: (e) => windows.broadcast(IPC_EVENTS.AiDelta, e),
+      recordUsage: (row) => usage?.recordPanel(row),
       log: (msg) => console.log('[ai-chat]', msg)
     })
     taskQueue = new TaskQueue({
@@ -257,7 +282,8 @@ if (!gotLock) {
 
     registerIpcHandlers(settings, updater)
     registerSessionsIpc(dao, claudeData, terminals)
-    registerTerminalsIpc({ terminals, backends, globalSwitch, hooks, dao })
+    registerUsageIpc(usageDao, usage)
+    registerTerminalsIpc({ terminals, backends, globalSwitch, hooks })
     registerAiIpc({ chat, tasks: taskQueue, aiDao, apiConfig })
     registerLauncherIpc({
       service: launcher,
@@ -287,8 +313,9 @@ if (!gotLock) {
     windows.createMainWindow(!startHidden)
     launcherWin.create() // 预创建隐藏窗，热键唤起零加载开销
 
-    // 窗口先出，重同步与 hooks 恢复随后跑（不阻塞首屏）
+    // 窗口先出，重同步与 hooks 恢复随后跑（不阻塞首屏）；用量首扫与 F1 各持 worker 并行
     void claudeData.start().catch((err) => console.error('[claude-sync] 启动失败', err))
+    void usage.start().catch((err) => console.error('[usage] 启动失败', err))
     void hooks.init().catch((err) => console.error('[hooks] 启动恢复失败', err))
 
     // 应用索引：启动 5s 后补扫（首启/超 24h），此后每 24h 刷新（§7.3 刷新策略）

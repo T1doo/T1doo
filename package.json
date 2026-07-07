@@ -1,6 +1,6 @@
 {
   "name": "t1doo",
-  "version": "1.1.0-m7",
+  "version": "1.1.0-m8",
   "description": "T1doo — Windows 桌面上的 AI 工作调度中心（Claude Code 编排与观测层）",
   "main": "./out/main/index.js",
   "author": "T1doo",
@@ -48,6 +48,7 @@
     "@xterm/addon-fit": "0.11.0",
     "@xterm/addon-search": "0.16.0",
     "@xterm/xterm": "6.0.0",
+    "better-sqlite3-node": "npm:better-sqlite3@12.10.1",
     "electron": "^39.2.6",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
@@ -60,6 +61,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-markdown": "^10.1.0",
+    "recharts": "^3.9.2",
     "remark-gfm": "^4.0.1",
     "shiki": "^4.3.0",
     "tailwindcss": "^4.1.0",

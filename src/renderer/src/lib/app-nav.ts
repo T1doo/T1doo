@@ -7,6 +7,7 @@ export type PageId =
   | 'chat'
   | 'tasks'
   | 'models'
+  | 'usage'
   | 'settings'
 
 export interface AppNav {

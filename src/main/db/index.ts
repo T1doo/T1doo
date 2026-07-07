@@ -4,6 +4,7 @@ import { dirname } from 'path'
 import migration001 from './migrations/001_sessions.sql?raw'
 import migration002 from './migrations/002_launcher.sql?raw'
 import migration003 from './migrations/003_ai.sql?raw'
+import migration004 from './migrations/004_usage.sql?raw'
 
 interface Migration {
   version: number
@@ -14,7 +15,8 @@ interface Migration {
 const MIGRATIONS: Migration[] = [
   { version: 1, name: 'sessions', sql: migration001 },
   { version: 2, name: 'launcher', sql: migration002 },
-  { version: 3, name: 'ai', sql: migration003 }
+  { version: 3, name: 'ai', sql: migration003 },
+  { version: 4, name: 'usage', sql: migration004 }
 ]
 
 /** 打开（必要时创建）数据库：WAL、外键、按序迁移；升级前自动备份 */
@@ -24,6 +26,14 @@ export function openDatabase(dbPath: string): Database.Database {
   db.pragma('journal_mode = WAL')
   db.pragma('synchronous = NORMAL')
   db.pragma('foreign_keys = ON')
+  // 启动即收拢 WAL：既保证 migrate() 的 copyFileSync 备份包含全部已提交数据
+  // （只拷主文件时未检查点的 WAL 内容会丢），也避免 WAL 长期膨胀导致
+  // 本机外部工具打不开（M6/M8 实证：未检查点的库外部打开报 malformed schema）
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)')
+  } catch {
+    // 检查点失败不阻塞启动
+  }
   migrate(db, dbPath)
   return db
 }

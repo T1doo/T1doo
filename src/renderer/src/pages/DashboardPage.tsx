@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { UsageStats } from '@shared/api'
 import type { ClaudeStatus, TerminalInfo } from '@shared/terminals'
 import type { I18nKey } from '@shared/i18n'
+import { resolveUsageRange } from '@shared/usage'
 import { useI18n } from '../lib/i18n'
 import { formatTokens, useFormat } from '../lib/format'
 import { useAppNav } from '../lib/app-nav'
@@ -38,32 +38,55 @@ function DashboardPage(): React.JSX.Element {
     return () => offs.forEach((off) => off())
   }, [])
 
-  const usageQuery = useQuery<UsageStats>({
-    queryKey: ['usage'],
-    queryFn: () => window.t1doo.stats.usage(),
-    refetchInterval: 60_000
+  // M8 起用量卡片改由 usage_log 出数（精简版：今日/7 天 + 迷你趋势，点击跳转「用量」板块）
+  const todayQuery = useQuery({
+    queryKey: ['dash-usage', 'today'],
+    queryFn: () =>
+      window.t1doo.usage.query({ kind: 'summary', range: resolveUsageRange('today', new Date()) })
+  })
+  const weekQuery = useQuery({
+    queryKey: ['dash-usage', 'week'],
+    queryFn: () =>
+      window.t1doo.usage.query({ kind: 'summary', range: resolveUsageRange('7d', new Date()) })
+  })
+  const trendQuery = useQuery({
+    queryKey: ['dash-usage', 'trend'],
+    queryFn: () =>
+      window.t1doo.usage.query({ kind: 'trend', range: resolveUsageRange('7d', new Date()) })
   })
   const sessionsQuery = useQuery({
     queryKey: ['dash-sessions'],
     queryFn: () => window.t1doo.sessions.list()
   })
 
-  // 会话索引更新时刷新最近会话与用量
+  // 会话索引/用量增量更新时刷新
   useEffect(() => {
-    return window.t1doo.sessions.onUpdated(() => {
+    const offSessions = window.t1doo.sessions.onUpdated(() => {
       void queryClient.invalidateQueries({ queryKey: ['dash-sessions'] })
-      void queryClient.invalidateQueries({ queryKey: ['usage'] })
     })
+    const offUsage = window.t1doo.usage.onUpdated(() => {
+      void queryClient.invalidateQueries({ queryKey: ['dash-usage'] })
+    })
+    return () => {
+      offSessions()
+      offUsage()
+    }
   }, [queryClient])
 
   const running = terms.filter((term) => !term.exit)
   const waiting = running.filter((term) => term.status === 'waiting')
   const recent = (sessionsQuery.data ?? []).slice(0, 6)
-  const usage = usageQuery.data
+  const today = todayQuery.data
+  const week = weekQuery.data
+  const trendPoints = trendQuery.data?.points
 
   const maxDaily = useMemo(
-    () => Math.max(1, ...(usage?.daily.map((d) => d.input + d.output) ?? [1])),
-    [usage]
+    () =>
+      Math.max(
+        1,
+        ...(trendPoints?.map((p) => p.input + p.output + p.cacheRead + p.cacheCreation) ?? [1])
+      ),
+    [trendPoints]
   )
 
   return (
@@ -135,47 +158,58 @@ function DashboardPage(): React.JSX.Element {
           )}
         </div>
 
-        {/* token 用量（§7.6 成本口径：只展示 token 数，不折算美元） */}
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
-          <h2 className="mb-3 font-medium">{t('dashboard.tokenUsage')}</h2>
-          {usage ? (
+        {/* token 用量精简卡片（M8 §7.8.4）：今日/7 天 + 迷你趋势，点击进「用量」板块 */}
+        <button
+          type="button"
+          data-testid="dash-usage-card"
+          onClick={() => nav.goPage('usage')}
+          className="rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5 text-left transition-colors hover:border-[var(--accent)]"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-medium">{t('dashboard.tokenUsage')}</h2>
+            <span className="text-xs text-[var(--accent)]">{t('usage.dash.viewMore')}</span>
+          </div>
+          {today && week ? (
             <>
               <div className="mb-3 flex gap-6 text-sm">
                 <div>
                   <div className="text-[var(--fg-muted)]">{t('dashboard.today')}</div>
                   <div className="font-medium">
-                    ↑{formatTokens(usage.todayInput)} ↓{formatTokens(usage.todayOutput)}
+                    ↑{formatTokens(today.input)} ↓{formatTokens(today.output)}
                   </div>
                 </div>
                 <div>
                   <div className="text-[var(--fg-muted)]">{t('dashboard.last7Days')}</div>
                   <div className="font-medium">
-                    ↑{formatTokens(usage.weekInput)} ↓{formatTokens(usage.weekOutput)}
+                    ↑{formatTokens(week.input)} ↓{formatTokens(week.output)}
                   </div>
                 </div>
               </div>
               <div className="flex h-16 items-end gap-1">
-                {usage.daily.map((d) => (
-                  <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
-                    <div
-                      className="w-full rounded-sm bg-[var(--accent)] opacity-70"
-                      style={{ height: `${Math.max(2, ((d.input + d.output) / maxDaily) * 56)}px` }}
-                      title={t('dashboard.dailyTooltip', {
-                        day: d.day,
-                        input: formatTokens(d.input),
-                        output: formatTokens(d.output)
-                      })}
-                    />
-                    <span className="text-[10px] text-[var(--fg-muted)]">{d.day.slice(3)}</span>
-                  </div>
-                ))}
+                {(trendPoints ?? []).map((p) => {
+                  const total = p.input + p.output + p.cacheRead + p.cacheCreation
+                  return (
+                    <div key={p.key} className="flex flex-1 flex-col items-center gap-1">
+                      <div
+                        className="w-full rounded-sm bg-[var(--accent)] opacity-70"
+                        style={{ height: `${Math.max(2, (total / maxDaily) * 56)}px` }}
+                        title={t('dashboard.dailyTooltip', {
+                          day: p.key.slice(5),
+                          input: formatTokens(p.input),
+                          output: formatTokens(p.output)
+                        })}
+                      />
+                      <span className="text-[10px] text-[var(--fg-muted)]">{p.key.slice(8)}</span>
+                    </div>
+                  )
+                })}
               </div>
               <p className="mt-2 text-[10px] text-[var(--fg-muted)]">{t('dashboard.usageNote')}</p>
             </>
           ) : (
             <p className="text-sm text-[var(--fg-muted)]">{t('dashboard.statsLoading')}</p>
           )}
-        </div>
+        </button>
 
         {/* 最近会话 */}
         <div className="col-span-2 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">

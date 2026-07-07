@@ -8,6 +8,7 @@ export const common = {
   'nav.chat': { zh: '对话', en: 'Chat' },
   'nav.tasks': { zh: '任务', en: 'Tasks' },
   'nav.models': { zh: '模型', en: 'Models' },
+  'nav.usage': { zh: '用量', en: 'Usage' },
   'nav.settings': { zh: '设置', en: 'Settings' },
 
   'common.loading': { zh: '加载中…', en: 'Loading…' },

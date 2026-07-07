@@ -7,6 +7,7 @@ import type { SyncProgress } from '../shared/sessions'
 import type { ClaudeStatusEvent, TerminalInfo } from '../shared/terminals'
 import type { LauncherState } from '../shared/launcher'
 import type { AiDeltaEvent, TaskInfo } from '../shared/ai'
+import type { UsageQueryRequest } from '../shared/usage'
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_event: IpcRendererEvent, payload: T): void => cb(payload)
@@ -75,8 +76,13 @@ const api: T1dooApi = {
     setEnabled: (enabled) => ipcRenderer.invoke(IPC.HooksSetEnabled, enabled),
     onClaudeStatus: (cb) => subscribe<ClaudeStatusEvent>(IPC_EVENTS.ClaudeStatus, cb)
   },
-  stats: {
-    usage: () => ipcRenderer.invoke(IPC.StatsUsage)
+  usage: {
+    query: (req: UsageQueryRequest) => ipcRenderer.invoke(IPC.UsageQuery, req),
+    pricingList: () => ipcRenderer.invoke(IPC.UsagePricingList),
+    pricingSave: (input) => ipcRenderer.invoke(IPC.UsagePricingSave, input),
+    pricingReset: (modelId) => ipcRenderer.invoke(IPC.UsagePricingReset, modelId),
+    scanState: () => ipcRenderer.invoke(IPC.UsageScanState),
+    onUpdated: (cb) => subscribe<void>(IPC_EVENTS.UsageUpdated, cb)
   },
   launcher: {
     query: (q) => ipcRenderer.invoke(IPC.LauncherQuery, q),

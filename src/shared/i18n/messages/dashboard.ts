@@ -27,8 +27,8 @@ export const dashboard = {
     en: '{day}: ↑{input} ↓{output}'
   },
   'dashboard.usageNote': {
-    zh: '按 assistant 消息 usage 聚合；订阅/自定义后端不折算美元',
-    en: 'Aggregated from assistant message usage; no USD conversion for subscription or custom backends'
+    zh: '全量口径（含子代理/工作流/面板）；成本估算见用量板块',
+    en: 'Full coverage (subagents / workflows / panel); cost estimates in the Usage board'
   },
   'dashboard.statsLoading': { zh: '统计中…', en: 'Calculating…' },
 

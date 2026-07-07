@@ -73,9 +73,23 @@ describe('stream-json 行解析（§7.5 白名单容错）', () => {
       totalCostUsd: 0.0123,
       inputTokens: 100,
       outputTokens: 50,
+      cacheReadTokens: 10,
+      cacheCreationTokens: null,
       numTurns: 2,
       durationMs: 4200
     })
+  })
+
+  it('assistant 事件 → onAssistantModel 带模型名（M8 用量溯源）', () => {
+    let model: string | null = null
+    handleStreamJsonLine(
+      JSON.stringify({
+        type: 'assistant',
+        message: { model: 'claude-opus-4-8', content: [{ type: 'text', text: 'hi' }] }
+      }),
+      { onAssistantModel: (m) => (model = m) }
+    )
+    expect(model).toBe('claude-opus-4-8')
   })
 
   it('system/init → onInit 带 session_id', () => {

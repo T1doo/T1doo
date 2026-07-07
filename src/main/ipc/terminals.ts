@@ -8,7 +8,6 @@ import type {
   BackendTestResult
 } from '../../shared/backend'
 import type { TerminalProfile } from '../../shared/terminals'
-import type { UsageStats } from '../../shared/api'
 import type { TerminalManager } from '../services/terminal/manager'
 import type { BackendProfilesService } from '../services/backend/profiles'
 import type { GlobalSwitchService } from '../services/backend/global-switch'
@@ -16,16 +15,14 @@ import { probeModels } from '../services/backend/probe'
 import { describeProbeFailure } from '../services/backend/probe-messages'
 import { extractProfileFromEnv } from '../services/backend/settings-env'
 import type { HooksService } from '../services/hooks/server'
-import type { SessionsDao } from '../db/dao'
 
 export function registerTerminalsIpc(deps: {
   terminals: TerminalManager
   backends: BackendProfilesService
   globalSwitch: GlobalSwitchService
   hooks: HooksService
-  dao: SessionsDao
 }): void {
-  const { terminals, backends, globalSwitch, hooks, dao } = deps
+  const { terminals, backends, globalSwitch, hooks } = deps
 
   ipcMain.handle(IPC.TermCreate, (_e, profile: TerminalProfile) => terminals.create(profile))
   ipcMain.handle(IPC.TermClose, (_e, id: string) => terminals.close(id))
@@ -129,16 +126,5 @@ export function registerTerminalsIpc(deps: {
 
   ipcMain.handle(IPC.HooksGetState, () => hooks.getState())
   ipcMain.handle(IPC.HooksSetEnabled, (_e, enabled: boolean) => hooks.setEnabled(enabled === true))
-
-  ipcMain.handle(IPC.StatsUsage, (): UsageStats => {
-    const daily = dao.usageDaily(7)
-    const today = daily[daily.length - 1] ?? { input: 0, output: 0 }
-    return {
-      todayInput: today.input,
-      todayOutput: today.output,
-      weekInput: daily.reduce((sum, d) => sum + d.input, 0),
-      weekOutput: daily.reduce((sum, d) => sum + d.output, 0),
-      daily
-    }
-  })
+  // stats:usage 已退役（M8）：Dashboard 用量卡片改由 usage:query（usage_log 全量口径）出数
 }

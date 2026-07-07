@@ -44,8 +44,15 @@ export const IPC = {
   // hooks 状态感知（§7.2.4）
   HooksGetState: 'hooks:get-state',
   HooksSetEnabled: 'hooks:set-enabled',
-  // Dashboard
-  StatsUsage: 'stats:usage',
+  // F9 用量中心（§7.8）：Dashboard 卡片与板块共用（stats:usage 已随 M8 退役）
+  /** 聚合查询单入口（kind: summary/trend/byModel/byProject/bySource/facets） */
+  UsageQuery: 'usage:query',
+  UsagePricingList: 'usage:pricing-list',
+  UsagePricingSave: 'usage:pricing-save',
+  /** 内置模型恢复种子价，用户自建模型删行 */
+  UsagePricingReset: 'usage:pricing-reset',
+  /** 扫描器状态（首扫进度/行数，perf-audit 也用） */
+  UsageScanState: 'usage:scan-state',
   // F3 启动器（§7.3）
   LauncherQuery: 'launcher:query',
   LauncherExecute: 'launcher:execute',
@@ -94,5 +101,7 @@ export const IPC_EVENTS = {
   /** F5 任务状态变化（入队/开跑/完成/失败/取消） */
   TaskUpdate: 'evt:task:update',
   /** 自动更新状态变化（checking/downloading/downloaded/…） */
-  UpdaterState: 'evt:updater:state'
+  UpdaterState: 'evt:updater:state',
+  /** 用量数据有增量写入（扫描器/面板来源），渲染层失效查询即可（不做轮询，§7.8.4） */
+  UsageUpdated: 'evt:usage:updated'
 } as const

@@ -42,19 +42,22 @@ import type {
   TaskInfo,
   TaskSpec
 } from './ai'
-
-/** Dashboard 用量聚合（token 数口径，不折算美元——§7.6） */
-export interface UsageStats {
-  todayInput: number
-  todayOutput: number
-  weekInput: number
-  weekOutput: number
-  /** 近 7 天逐日 output token（旧→新，Dashboard 曲线用） */
-  daily: { day: string; input: number; output: number }[]
-}
+import type {
+  PricingRow,
+  PricingSaveInput,
+  UsageByModelRow,
+  UsageByProjectRow,
+  UsageBySourceRow,
+  UsageFacets,
+  UsageFilter,
+  UsageRange,
+  UsageScanState,
+  UsageSummary,
+  UsageTrend
+} from './usage'
 
 export interface NavigateRequest {
-  page: 'dashboard' | 'sessions' | 'terminals' | 'chat' | 'tasks' | 'models' | 'settings'
+  page: 'dashboard' | 'sessions' | 'terminals' | 'chat' | 'tasks' | 'models' | 'usage' | 'settings'
   terminalId?: string
   sessionId?: string
   /** page='chat' 时聚焦的对话（启动器 @ 提问落点） */
@@ -140,8 +143,33 @@ export interface T1dooApi {
     setEnabled(enabled: boolean): Promise<HooksState>
     onClaudeStatus(cb: (e: ClaudeStatusEvent) => void): () => void
   }
-  stats: {
-    usage(): Promise<UsageStats>
+  /** F9 用量中心（§7.8）：聚合查询单入口（kind 参数）+ 价目表 */
+  usage: {
+    query(req: { kind: 'summary'; range: UsageRange; filter?: UsageFilter }): Promise<UsageSummary>
+    query(req: { kind: 'trend'; range: UsageRange; filter?: UsageFilter }): Promise<UsageTrend>
+    query(req: {
+      kind: 'byModel'
+      range: UsageRange
+      filter?: UsageFilter
+    }): Promise<UsageByModelRow[]>
+    query(req: {
+      kind: 'byProject'
+      range: UsageRange
+      filter?: UsageFilter
+    }): Promise<UsageByProjectRow[]>
+    query(req: {
+      kind: 'bySource'
+      range: UsageRange
+      filter?: UsageFilter
+    }): Promise<UsageBySourceRow[]>
+    query(req: { kind: 'facets'; range: UsageRange }): Promise<UsageFacets>
+    pricingList(): Promise<PricingRow[]>
+    pricingSave(input: PricingSaveInput): Promise<PricingRow[]>
+    /** 内置模型恢复种子价；用户自建模型删行 */
+    pricingReset(modelId: string): Promise<PricingRow[]>
+    scanState(): Promise<UsageScanState>
+    /** 用量数据有增量写入（扫描器/面板），失效查询即可 */
+    onUpdated(cb: () => void): () => void
   }
   launcher: {
     query(q: string): Promise<LauncherQueryResult>

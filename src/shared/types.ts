@@ -20,6 +20,8 @@ export interface AppSettings {
   launcherSearchUrl: string
   /** 首启引导已完成/跳过（M6 §8） */
   onboardingDone: boolean
+  /** 用量中心「显示名义成本估算」开关（§7.8.3；默认关，开启后金额恒带「估算」标注） */
+  usageShowCost: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -31,7 +33,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifyTaskDone: true,
   launcherHotkey: 'Alt+Space',
   launcherSearchUrl: 'https://www.bing.com/search?q={query}',
-  onboardingDone: false
+  onboardingDone: false,
+  usageShowCost: false
 }
 
 /** 首启引导的 claude 探测结果 */

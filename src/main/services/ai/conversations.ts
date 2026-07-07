@@ -7,9 +7,10 @@ import type {
 } from '../../../shared/ai'
 import { DEFAULT_API_MODEL } from '../../../shared/ai'
 import type { AiDao } from '../../db/ai-dao'
+import type { UsageInsertRow } from '../../db/usage-dao'
 import type { BackendProfilesService } from '../backend/profiles'
-import { CliChatEngine } from './engine-cli'
-import { ApiChatEngine } from './engine-api'
+import { CliChatEngine, type CliTurnOutcome } from './engine-cli'
+import { ApiChatEngine, type ApiTurnOutcome } from './engine-api'
 import type { AiApiConfigService } from './api-config'
 import { t } from '../i18n'
 
@@ -22,6 +23,8 @@ export interface ChatServiceOptions {
   backends: BackendProfilesService
   apiConfig: AiApiConfigService
   emit: (e: AiDeltaEvent) => void
+  /** 用量中心面板来源写入（§7.8.2 第 4 条）；任务队列不经此路（其会话落盘 JSONL，session 来源已覆盖） */
+  recordUsage?: (row: UsageInsertRow) => void
   log?: (msg: string) => void
 }
 
@@ -126,7 +129,7 @@ export class ChatService {
     }
 
     try {
-      let outcome: { text: string; inputTokens: number | null; outputTokens: number | null }
+      let outcome: ApiTurnOutcome | CliTurnOutcome
       if (engine === 'api') {
         const apiKey = this.opts.apiConfig.resolveKey()
         if (!apiKey) {
@@ -155,6 +158,7 @@ export class ChatService {
         outputTokens: outcome.outputTokens,
         ts: Date.now()
       })
+      this.recordPanelUsage(convId, engine, model, backendProfileId, outcome, messageId)
       this.inFlight.delete(convId)
       this.opts.emit({
         convId,
@@ -181,6 +185,69 @@ export class ChatService {
       this.inFlight.delete(convId)
       this.opts.log?.(`回合失败 conv=${convId}: ${message}`)
       this.opts.emit({ convId, turnId: flight.turnId, kind: 'error', message, partialSaved })
+    }
+  }
+
+  /**
+   * 面板回合 → usage_log（全局一张表出数）。主键：api 引擎 `api:<messageId>`；
+   * cli 引擎 `--no-session-persistence` 不落 JSONL，用 `cli:<sessionId>:<turn>` 补记
+   * （turn = 落库的 assistant 消息行 id，回合内单调且稳定）。
+   */
+  private recordPanelUsage(
+    convId: string,
+    engine: 'cli' | 'api',
+    model: string | null,
+    backendProfileId: string | null,
+    outcome: ApiTurnOutcome | CliTurnOutcome,
+    messageRowId: number
+  ): void {
+    if (!this.opts.recordUsage) return
+    const input = outcome.inputTokens ?? 0
+    const output = outcome.outputTokens ?? 0
+    const cacheRead = outcome.cacheReadTokens ?? 0
+    const cacheCreation = outcome.cacheCreationTokens ?? 0
+    // 口径与扫描器一致：任一计费维度 > 0 才计入
+    if (input + output + cacheRead + cacheCreation <= 0) return
+
+    let row: UsageInsertRow
+    if (engine === 'api') {
+      const o = outcome as ApiTurnOutcome
+      if (!o.messageId) return
+      row = {
+        messageId: `api:${o.messageId}`,
+        sessionId: convId,
+        projectPath: null,
+        model: o.model ?? model ?? DEFAULT_API_MODEL,
+        ts: Date.now(),
+        input,
+        output,
+        cacheRead,
+        cacheCreation,
+        stopReason: o.stopReason,
+        source: 'api-panel',
+        backendProfileId: null
+      }
+    } else {
+      const o = outcome as CliTurnOutcome
+      row = {
+        messageId: `cli:${o.sessionId ?? convId}:${messageRowId}`,
+        sessionId: o.sessionId ?? convId,
+        projectPath: null,
+        model: o.model ?? model,
+        ts: Date.now(),
+        input,
+        output,
+        cacheRead,
+        cacheCreation,
+        stopReason: o.subtype,
+        source: 'cli-panel',
+        backendProfileId
+      }
+    }
+    try {
+      this.opts.recordUsage(row)
+    } catch (err) {
+      this.opts.log?.(`面板用量写入失败（忽略）：${String(err)}`)
     }
   }
 

@@ -23,6 +23,13 @@ export interface ApiTurnOutcome {
   text: string
   inputTokens: number | null
   outputTokens: number | null
+  /** 用量中心补记（§7.8.2 面板来源）：SDK usage 回传的 cache 维度与去重键 */
+  cacheReadTokens: number | null
+  cacheCreationTokens: number | null
+  /** assistant message.id（usage_log 主键 `api:<messageId>`） */
+  messageId: string | null
+  model: string | null
+  stopReason: string | null
 }
 
 /** SDK 错误 → 面向用户的明确提示（验收①：断网/无 Key 等异常有明确提示） */
@@ -90,7 +97,12 @@ export class ApiChatEngine {
       return {
         text,
         inputTokens: final.usage.input_tokens ?? null,
-        outputTokens: final.usage.output_tokens ?? null
+        outputTokens: final.usage.output_tokens ?? null,
+        cacheReadTokens: final.usage.cache_read_input_tokens ?? null,
+        cacheCreationTokens: final.usage.cache_creation_input_tokens ?? null,
+        messageId: final.id ?? null,
+        model: final.model ?? null,
+        stopReason: final.stop_reason ?? null
       }
     } catch (err) {
       throw new Error(describeApiError(err))
