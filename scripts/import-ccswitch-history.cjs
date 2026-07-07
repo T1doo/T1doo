@@ -19,8 +19,49 @@
  *     [--source <cc-switch.db>] [--target <t1doo.db>] [--cutoff YYYY-MM-DD]
  */
 const { join } = require('path')
-const { existsSync, copyFileSync, readFileSync } = require('fs')
-const Database = require('better-sqlite3-node') // Node ABI 副本（vitest/perf-audit 同款）
+const { existsSync, copyFileSync, readFileSync, mkdtempSync, appendFileSync } = require('fs')
+const { tmpdir } = require('os')
+
+/**
+ * SQLite 双形态：ELECTRON_RUN_AS_NODE 下优先应用同款 Electron ABI（能稳妥处理
+ * 应用留下的 WAL，本机实证外部 Node 构建偶发打不开）；普通 node 下 ABI 不合会抛
+ * → 回落 Node ABI 别名副本。
+ */
+function loadSqlite() {
+  try {
+    const D = require('better-sqlite3')
+    new D(':memory:').close()
+    return D
+  } catch {
+    return require('better-sqlite3-node')
+  }
+}
+const Database = loadSqlite()
+
+/**
+ * 源库可能正被 cc-switch 以 WAL 打开——外部 readonly 打开做不了 WAL recovery，
+ * 报 malformed database schema（§14.2 M6 踩坑同款）→ 回退为拷贝 db(+wal) 副本再读。
+ */
+function openSourceReadonly(path) {
+  try {
+    const db = new Database(path, { readonly: true })
+    db.prepare('SELECT 1 FROM usage_daily_rollups LIMIT 1').get() // 触发 schema 读取
+    return db
+  } catch {
+    const dir = mkdtempSync(join(tmpdir(), 'ccswitch-import-'))
+    const copy = join(dir, 'source.db')
+    copyFileSync(path, copy)
+    for (const ext of ['-wal', '-shm']) {
+      try {
+        copyFileSync(`${path}${ext}`, `${copy}${ext}`)
+      } catch {
+        /* 无 wal/shm 或被锁：忽略 */
+      }
+    }
+    console.log('源库被占用（cc-switch 在运行），已改用副本读取')
+    return new Database(copy) // 非 readonly：允许对副本做 WAL recovery
+  }
+}
 
 const args = process.argv.slice(2)
 const flag = (name) => {
@@ -28,6 +69,19 @@ const flag = (name) => {
   return i >= 0 && args[i + 1] ? args[i + 1] : null
 }
 const DRY = args.includes('--dry-run')
+// ELECTRON_RUN_AS_NODE 下 stdout 可能被吞（§14.2 档案）→ 支持同步落盘一份
+const LOG_FILE = flag('--log')
+const rawLog = console.log.bind(console)
+console.log = (...parts) => {
+  rawLog(...parts)
+  if (LOG_FILE) {
+    try {
+      appendFileSync(LOG_FILE, parts.map(String).join(' ') + '\n')
+    } catch {
+      /* 忽略 */
+    }
+  }
+}
 const SOURCE_DB =
   flag('--source') || join(process.env.USERPROFILE || '', '.cc-switch', 'cc-switch.db')
 const TARGET_DB = flag('--target') || join(process.env.APPDATA || '', 't1doo', 't1doo.db')
@@ -95,7 +149,7 @@ function main() {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoff)) throw new Error(`非法 cutoff：${cutoff}`)
 
   // —— 源库：日×模型聚合（date < cutoff，只取 claude） ——
-  const source = new Database(SOURCE_DB, { readonly: true })
+  const source = openSourceReadonly(SOURCE_DB)
   const groups = source
     .prepare(
       `SELECT date, model,
@@ -193,6 +247,6 @@ function main() {
 try {
   main()
 } catch (err) {
-  console.error('导入失败：', err.message ?? err)
+  console.log('导入失败：', err.message ?? err)
   process.exit(1)
 }

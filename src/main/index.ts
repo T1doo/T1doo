@@ -52,6 +52,7 @@ if (!gotLock) {
   const windows = new WindowManager(() => settings.get().closeToTray)
   const launcherWin = new LauncherWindow()
   const shortcut = new LauncherShortcut()
+  let dbRef: ReturnType<typeof openDatabase> | null = null
   let claudeData: ClaudeDataService | null = null
   let usage: UsageService | null = null
   let terminals: TerminalManager | null = null
@@ -80,6 +81,13 @@ if (!gotLock) {
     if (appScanTimer) clearInterval(appScanTimer)
     void claudeData?.dispose()
     void usage?.dispose()
+    // 干净关库触发 WAL 关闭检查点：否则写入长期悬在 -wal 里，
+    // 主文件停更且外部工具打不开（M8 实证）；有语句在飞则跳过（下次启动检查点兜底）
+    try {
+      dbRef?.close()
+    } catch {
+      // 忽略：openDatabase 启动时的 wal_checkpoint(TRUNCATE) 会兜底收拢
+    }
   })
 
   app.on('window-all-closed', () => {
@@ -107,6 +115,7 @@ if (!gotLock) {
     // F1 数据层：SQLite + 会话同步服务
     // T1DOO_DB_PATH / T1DOO_PROJECTS_DIR 仅供开发与 E2E 测试注入隔离环境
     const db = openDatabase(process.env.T1DOO_DB_PATH ?? join(app.getPath('userData'), 't1doo.db'))
+    dbRef = db
     const dao = new SessionsDao(db)
     claudeData = new ClaudeDataService({
       projectsDir: process.env.T1DOO_PROJECTS_DIR ?? defaultProjectsDir(homedir()),
