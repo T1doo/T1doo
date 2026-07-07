@@ -1,6 +1,33 @@
 import { describe, expect, it } from 'vitest'
-import { parseModelsResponse } from '../../src/main/services/backend/probe'
+import { modelsCandidates, parseModelsResponse } from '../../src/main/services/backend/probe'
 import { BACKEND_PRESETS } from '../../src/shared/backend-presets'
+
+describe('modelsCandidates（§7.7.4 兼容子路径剥离回退，cc-switch 同款）', () => {
+  it('无兼容子路径：仅 base 两个候选', () => {
+    expect(modelsCandidates('https://api.example.com/')).toEqual([
+      'https://api.example.com/v1/models',
+      'https://api.example.com/models'
+    ])
+  })
+
+  it('DeepSeek /anthropic：追加根路径变体（模型列表在根上）', () => {
+    expect(modelsCandidates('https://api.deepseek.com/anthropic')).toEqual([
+      'https://api.deepseek.com/anthropic/v1/models',
+      'https://api.deepseek.com/anthropic/models',
+      'https://api.deepseek.com/v1/models',
+      'https://api.deepseek.com/models'
+    ])
+  })
+
+  it('智谱 /api/anthropic 与百炼 /apps/anthropic：剥到根', () => {
+    expect(modelsCandidates('https://open.bigmodel.cn/api/anthropic')).toContain(
+      'https://open.bigmodel.cn/v1/models'
+    )
+    expect(modelsCandidates('https://dashscope.aliyuncs.com/apps/anthropic')).toContain(
+      'https://dashscope.aliyuncs.com/v1/models'
+    )
+  })
+})
 
 describe('parseModelsResponse（§7.7.4 双形态兼容解析）', () => {
   it('OpenAI 形态 {data:[{id}]}', () => {

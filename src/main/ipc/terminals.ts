@@ -11,26 +11,11 @@ import type { UsageStats } from '../../shared/api'
 import type { TerminalManager } from '../services/terminal/manager'
 import type { BackendProfilesService } from '../services/backend/profiles'
 import type { GlobalSwitchService } from '../services/backend/global-switch'
-import { probeModels, type ProbeResult } from '../services/backend/probe'
+import { probeModels } from '../services/backend/probe'
+import { describeProbeFailure } from '../services/backend/probe-messages'
 import { extractProfileFromEnv } from '../services/backend/settings-env'
 import type { HooksService } from '../services/hooks/server'
 import type { SessionsDao } from '../db/dao'
-
-/** probe 失败 → 中文提示（describeApiError 同口径，§7.7.4） */
-function describeProbeFailure(r: Extract<ProbeResult, { ok: false }>): string {
-  switch (r.kind) {
-    case 'auth':
-      return t('models.test.auth')
-    case 'notfound':
-      return t('models.test.notFound')
-    case 'timeout':
-      return t('models.test.timeout')
-    case 'network':
-      return t('models.test.network')
-    default:
-      return t('models.test.http', { status: r.status ?? '?' })
-  }
-}
 
 export function registerTerminalsIpc(deps: {
   terminals: TerminalManager

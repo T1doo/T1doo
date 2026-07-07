@@ -51,10 +51,10 @@ export const BACKEND_PRESETS: BackendPreset[] = [
     baseUrl: 'https://api.deepseek.com/anthropic',
     websiteUrl: 'https://platform.deepseek.com',
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
-    model: 'deepseek-chat',
-    smallFastModel: 'deepseek-chat',
-    defaultSonnetModel: 'deepseek-chat',
-    defaultOpusModel: 'deepseek-reasoner'
+    model: 'deepseek-v4-pro',
+    smallFastModel: 'deepseek-v4-flash',
+    defaultSonnetModel: 'deepseek-v4-pro',
+    defaultOpusModel: 'deepseek-v4-pro'
   },
   {
     id: 'kimi',
@@ -111,7 +111,11 @@ export const BACKEND_PRESETS: BackendPreset[] = [
     auth: 'custom',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/compatible',
     websiteUrl: 'https://www.volcengine.com/product/doubao',
-    apiKeyUrl: 'https://console.volcengine.com/ark'
+    apiKeyUrl: 'https://console.volcengine.com/ark',
+    model: 'doubao-seed-2-1-pro-260628',
+    smallFastModel: 'doubao-seed-2-1-pro-260628',
+    defaultSonnetModel: 'doubao-seed-2-1-pro-260628',
+    defaultOpusModel: 'doubao-seed-2-1-pro-260628'
   },
   {
     id: 'siliconflow',
@@ -120,7 +124,11 @@ export const BACKEND_PRESETS: BackendPreset[] = [
     auth: 'custom',
     baseUrl: 'https://api.siliconflow.cn',
     websiteUrl: 'https://siliconflow.cn',
-    apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak'
+    apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak',
+    model: 'Pro/MiniMaxAI/MiniMax-M2.7',
+    smallFastModel: 'Pro/MiniMaxAI/MiniMax-M2.7',
+    defaultSonnetModel: 'Pro/MiniMaxAI/MiniMax-M2.7',
+    defaultOpusModel: 'Pro/MiniMaxAI/MiniMax-M2.7'
   },
   {
     id: 'modelscope',
@@ -129,7 +137,11 @@ export const BACKEND_PRESETS: BackendPreset[] = [
     auth: 'custom',
     baseUrl: 'https://api-inference.modelscope.cn',
     websiteUrl: 'https://modelscope.cn',
-    apiKeyUrl: 'https://modelscope.cn/my/myaccesstoken'
+    apiKeyUrl: 'https://modelscope.cn/my/myaccesstoken',
+    model: 'ZhipuAI/GLM-5.1',
+    smallFastModel: 'ZhipuAI/GLM-5.1',
+    defaultSonnetModel: 'ZhipuAI/GLM-5.1',
+    defaultOpusModel: 'ZhipuAI/GLM-5.1'
   },
   {
     id: 'custom',

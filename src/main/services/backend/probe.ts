@@ -26,8 +26,22 @@ export function parseModelsResponse(body: unknown): string[] {
   return models
 }
 
-function joinUrl(baseUrl: string, path: string): string {
-  return baseUrl.replace(/\/+$/, '') + path
+/**
+ * 模型列表候选 URL（cc-switch 同款回退思路）：
+ * 许多厂商把 Anthropic 兼容层挂在 `/anthropic` 类子路径（DeepSeek `/anthropic`、
+ * 智谱 `/api/anthropic`、百炼 `/apps/anthropic`），而模型列表在**根路径**——
+ * 对话 baseUrl 拼 /v1/models 会 404。故剥离已知兼容子路径追加根路径变体。
+ */
+export function modelsCandidates(baseUrl: string): string[] {
+  const base = baseUrl.replace(/\/+$/, '')
+  const bases = [base]
+  const stripped = base.replace(/\/(api|apps)?\/?anthropic$/i, '')
+  if (stripped && stripped !== base) bases.push(stripped)
+  const urls: string[] = []
+  for (const b of bases) {
+    for (const path of ['/v1/models', '/models']) urls.push(b + path)
+  }
+  return urls
 }
 
 async function getOnce(
@@ -60,26 +74,32 @@ async function getOnce(
   }
 }
 
-/** 探测模型列表端点：/v1/models → 404 时回退 /models */
+/**
+ * 探测模型列表端点：逐个尝试候选 URL（含剥离兼容子路径的根路径变体）。
+ * 超时/断网立即失败（同一主机换路径无意义）；401/403、其它 HTTP 错误记录后
+ * 继续尝试余下候选（某些网关对子路径也返回 401，根路径才是真端点）；
+ * 全部落空时按 auth > http > notfound 优先级归因。
+ */
 export async function probeModels(
   baseUrl: string,
   token: string | null,
   timeoutMs = TIMEOUT_MS
 ): Promise<ProbeResult> {
   const started = Date.now()
-  let last: Awaited<ReturnType<typeof getOnce>> | null = null
-  for (const path of ['/v1/models', '/models']) {
-    const r = await getOnce(joinUrl(baseUrl, path), token, timeoutMs)
-    last = r
+  let authFail: ProbeResult | null = null
+  let httpFail: ProbeResult | null = null
+  for (const url of modelsCandidates(baseUrl)) {
+    const r = await getOnce(url, token, timeoutMs)
     if ('timeout' in r) return { ok: false, kind: 'timeout', status: null }
     if ('network' in r) return { ok: false, kind: 'network', status: null }
-    if (r.status === 404) continue // 回退下一个候选路径
     if (r.status === 200) {
       return { ok: true, models: parseModelsResponse(r.body), latencyMs: Date.now() - started }
     }
-    if (r.status === 401 || r.status === 403) return { ok: false, kind: 'auth', status: r.status }
-    return { ok: false, kind: 'http', status: r.status }
+    if (r.status === 401 || r.status === 403) {
+      authFail = authFail ?? { ok: false, kind: 'auth', status: r.status }
+    } else if (r.status !== 404) {
+      httpFail = httpFail ?? { ok: false, kind: 'http', status: r.status }
+    }
   }
-  void last
-  return { ok: false, kind: 'notfound', status: 404 }
+  return authFail ?? httpFail ?? { ok: false, kind: 'notfound', status: 404 }
 }
