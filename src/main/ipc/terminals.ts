@@ -2,6 +2,7 @@ import { dialog, ipcMain } from 'electron'
 import { IPC, IPC_SEND } from '../../shared/ipc'
 import { t } from '../services/i18n'
 import type {
+  BackendModelsRequest,
   BackendModelsResult,
   BackendProfileInput,
   BackendTestResult
@@ -82,17 +83,25 @@ export function registerTerminalsIpc(deps: {
     return { ok: false, latencyMs: null, modelCount: null, error: describeProbeFailure(r) }
   })
 
-  ipcMain.handle(IPC.BackendModels, async (_e, id: string): Promise<BackendModelsResult> => {
-    const view = backends.get(id)
-    if (!view?.baseUrl) return { models: [], error: t('models.test.noBaseUrl') }
-    const r = await probeModels(view.baseUrl, backends.resolve(id)?.token ?? null)
-    if (r.ok && r.models.length > 0) {
-      backends.setModelCache(id, r.models)
-      return { models: r.models, error: null }
+  ipcMain.handle(
+    IPC.BackendModels,
+    async (_e, req: BackendModelsRequest | string): Promise<BackendModelsResult> => {
+      // 兼容旧签名（string=profileId）；对象形态支持未保存档案即填即拉（编辑器场景）
+      const input = typeof req === 'string' ? { profileId: req } : (req ?? {})
+      const profile = input.profileId ? backends.get(input.profileId) : null
+      const baseUrl = input.baseUrl?.trim() || profile?.baseUrl
+      if (!baseUrl) return { models: [], error: t('models.test.noBaseUrl') }
+      const token =
+        input.token || (input.profileId ? (backends.resolve(input.profileId)?.token ?? null) : null)
+      const r = await probeModels(baseUrl, token)
+      if (r.ok && r.models.length > 0) {
+        if (profile) backends.setModelCache(profile.id, r.models)
+        return { models: r.models, error: null }
+      }
+      // 拉取失败 / 空列表：降级自由输入并报具体原因（R10 口径）
+      return { models: [], error: r.ok ? t('models.fetchModels.empty') : describeProbeFailure(r) }
     }
-    // 拉取失败 / 空列表：静默降级自由输入（R10 口径）
-    return { models: [], error: r.ok ? t('models.fetchModels.empty') : describeProbeFailure(r) }
-  })
+  )
 
   // —— §7.7.5 全局切换 ——
   ipcMain.handle(IPC.BackendGlobalState, () => globalSwitch.getState())

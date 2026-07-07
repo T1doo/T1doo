@@ -110,13 +110,17 @@ async function main() {
     fail(`预设 baseUrl 未预填：${prefilledUrl}`)
   const prefilledName = await page.locator('[data-testid="provider-name"]').inputValue()
   if (prefilledName !== 'DeepSeek') fail(`预设名称未预填：${prefilledName}`)
-  // 改指 mock 网关后保存
+  // 改指 mock 网关；保存前先"即填即拉"（未保存档案直接用表单值拉模型——用户反馈修复项）
   await page.locator('[data-testid="provider-name"]').fill('E2E-Good')
   await page.locator('[data-testid="provider-baseurl"]').fill(gw('good'))
   await page.locator('[data-testid="provider-token"]').fill(GOOD_TOKEN)
+  await page.locator('[data-testid="editor-fetch-models"]').click()
+  await page
+    .locator('[data-testid="editor-fetch-msg"]:has-text("已拉取 2 个模型")')
+    .waitFor({ timeout: 10000 })
   await page.locator('[data-testid="provider-save"]').click()
   await page.waitForSelector('[data-profile-name="E2E-Good"]')
-  console.log('① 预设建档一键预填（DeepSeek 模板 → 改指 mock）✅')
+  console.log('① 预设建档一键预填 + 未保存即填即拉模型 ✅')
 
   // 其余测试档案走 API 直建（表单路径①已覆盖）
   await page.evaluate(
@@ -156,7 +160,7 @@ async function main() {
   const modelsResult = await page.evaluate(async () => {
     const list = await window.t1doo.backend.list()
     const good = list.find((p) => p.name === 'E2E-Good')
-    const r = await window.t1doo.backend.models(good.id)
+    const r = await window.t1doo.backend.models({ profileId: good.id })
     const after = await window.t1doo.backend.list()
     return { fetched: r.models, cached: after.find((p) => p.name === 'E2E-Good').modelCache }
   })
@@ -167,7 +171,7 @@ async function main() {
   // 失败降级：404 网关拉取返回空列表 + 错误提示，不抛异常
   const nfModels = await page.evaluate(async () => {
     const list = await window.t1doo.backend.list()
-    return window.t1doo.backend.models(list.find((p) => p.name === 'E2E-404').id)
+    return window.t1doo.backend.models({ profileId: list.find((p) => p.name === 'E2E-404').id })
   })
   if (nfModels.models.length !== 0 || !nfModels.error) fail('404 网关拉取未降级')
   console.log('③ 模型列表拉取入缓存 + 失败降级自由输入 ✅')

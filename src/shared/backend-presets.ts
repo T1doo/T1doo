@@ -82,67 +82,8 @@ export const BACKEND_PRESETS: BackendPreset[] = [
     defaultSonnetModel: 'glm-5.1',
     defaultOpusModel: 'glm-5.1'
   },
-  {
-    id: 'bailian',
-    name: '阿里云百炼（通义）',
-    category: 'cn_official',
-    auth: 'custom',
-    baseUrl: 'https://dashscope.aliyuncs.com/apps/anthropic',
-    websiteUrl: 'https://bailian.console.aliyun.com',
-    apiKeyUrl: 'https://bailian.console.aliyun.com/?apiKey=1'
-  },
-  {
-    id: 'minimax',
-    name: 'MiniMax',
-    category: 'cn_official',
-    auth: 'custom',
-    baseUrl: 'https://api.minimaxi.com/anthropic',
-    websiteUrl: 'https://platform.minimaxi.com',
-    apiKeyUrl: 'https://platform.minimaxi.com/subscribe/coding-plan',
-    model: 'MiniMax-M2.7',
-    smallFastModel: 'MiniMax-M2.7',
-    defaultSonnetModel: 'MiniMax-M2.7',
-    defaultOpusModel: 'MiniMax-M2.7'
-  },
-  {
-    id: 'volcengine',
-    name: '火山方舟（豆包）',
-    category: 'cn_official',
-    auth: 'custom',
-    baseUrl: 'https://ark.cn-beijing.volces.com/api/compatible',
-    websiteUrl: 'https://www.volcengine.com/product/doubao',
-    apiKeyUrl: 'https://console.volcengine.com/ark',
-    model: 'doubao-seed-2-1-pro-260628',
-    smallFastModel: 'doubao-seed-2-1-pro-260628',
-    defaultSonnetModel: 'doubao-seed-2-1-pro-260628',
-    defaultOpusModel: 'doubao-seed-2-1-pro-260628'
-  },
-  {
-    id: 'siliconflow',
-    name: '硅基流动 SiliconFlow',
-    category: 'aggregator',
-    auth: 'custom',
-    baseUrl: 'https://api.siliconflow.cn',
-    websiteUrl: 'https://siliconflow.cn',
-    apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak',
-    model: 'Pro/MiniMaxAI/MiniMax-M2.7',
-    smallFastModel: 'Pro/MiniMaxAI/MiniMax-M2.7',
-    defaultSonnetModel: 'Pro/MiniMaxAI/MiniMax-M2.7',
-    defaultOpusModel: 'Pro/MiniMaxAI/MiniMax-M2.7'
-  },
-  {
-    id: 'modelscope',
-    name: '魔搭 ModelScope',
-    category: 'aggregator',
-    auth: 'custom',
-    baseUrl: 'https://api-inference.modelscope.cn',
-    websiteUrl: 'https://modelscope.cn',
-    apiKeyUrl: 'https://modelscope.cn/my/myaccesstoken',
-    model: 'ZhipuAI/GLM-5.1',
-    smallFastModel: 'ZhipuAI/GLM-5.1',
-    defaultSonnetModel: 'ZhipuAI/GLM-5.1',
-    defaultOpusModel: 'ZhipuAI/GLM-5.1'
-  },
+  // 2026-07-07 用户裁决精简：国产仅保留 DeepSeek / GLM / Kimi；
+  // 百炼 / MiniMax / 火山 / 硅基流动 / 魔搭等暂缓（需要时从"自定义"手建即可）
   {
     id: 'custom',
     name: '自定义',

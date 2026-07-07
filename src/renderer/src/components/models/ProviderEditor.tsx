@@ -25,12 +25,21 @@ function ProviderEditor({ initial, modelCache, onSave, onClose }: Props): React.
 
   const patch = (p: Partial<BackendProfileInput>): void => setForm((f) => ({ ...f, ...p }))
 
+  // 即填即拉：直接用表单当前 baseUrl/token 拉取，无需先保存；token 留空时回落档案已存密文
   const fetchModels = async (): Promise<void> => {
-    if (!form.id) return
+    const baseUrl = form.baseUrl?.trim()
+    if (!baseUrl) {
+      setFetchMsg(t('models.test.noBaseUrl'))
+      return
+    }
     setFetching(true)
     setFetchMsg(null)
     try {
-      const r = await window.t1doo.backend.models(form.id)
+      const r = await window.t1doo.backend.models({
+        profileId: form.id,
+        baseUrl,
+        token: form.token || undefined
+      })
       if (r.models.length > 0) {
         setModels(r.models)
         setFetchMsg(t('models.fetchModels.ok', { count: r.models.length }))
@@ -142,15 +151,15 @@ function ProviderEditor({ initial, modelCache, onSave, onClose }: Props): React.
               </div>
 
               <div className="flex items-end justify-between gap-3">
-                <span className="text-sm text-[var(--fg-muted)]">
+                <span data-testid="editor-fetch-msg" className="text-sm text-[var(--fg-muted)]">
                   {fetchMsg ??
                     (models.length > 0 ? t('models.fetchModels.ok', { count: models.length }) : '')}
                 </span>
                 <button
                   type="button"
-                  disabled={!form.id || fetching}
+                  data-testid="editor-fetch-models"
+                  disabled={fetching || !form.baseUrl?.trim()}
                   onClick={() => void fetchModels()}
-                  title={form.id ? '' : t('common.save')}
                   className="shrink-0 rounded-md border border-[var(--border)] px-2.5 py-1 text-sm text-[var(--fg-muted)] hover:text-[var(--fg)] disabled:opacity-40"
                 >
                   {fetching ? t('models.testing') : t('models.fetchModels')}

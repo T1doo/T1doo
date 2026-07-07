@@ -60,9 +60,15 @@ describe('parseModelsResponse（§7.7.4 双形态兼容解析）', () => {
 })
 
 describe('BACKEND_PRESETS（§7.7.3 预设完整性）', () => {
-  it('预设 ≥8 家（验收①），id 唯一', () => {
-    expect(BACKEND_PRESETS.length).toBeGreaterThanOrEqual(8)
-    expect(new Set(BACKEND_PRESETS.map((p) => p.id)).size).toBe(BACKEND_PRESETS.length)
+  it('预设清单固定 6 家（2026-07-07 用户裁决精简：国产仅 DeepSeek/GLM/Kimi），id 唯一', () => {
+    expect(BACKEND_PRESETS.map((p) => p.id)).toEqual([
+      'subscription',
+      'anthropic-api',
+      'deepseek',
+      'kimi',
+      'zhipu-glm',
+      'custom'
+    ])
   })
 
   it('custom 预设的 baseUrl/链接均为 https', () => {

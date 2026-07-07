@@ -9,6 +9,7 @@ import type {
   SyncProgress
 } from './sessions'
 import type {
+  BackendModelsRequest,
   BackendModelsResult,
   BackendProfileInput,
   BackendProfileView,
@@ -121,8 +122,8 @@ export interface T1dooApi {
     delete(id: string): Promise<BackendProfileView[]>
     /** 连通性测试（订阅态档案返回说明性提示，§7.7.4） */
     test(id: string): Promise<BackendTestResult>
-    /** 拉取网关模型列表并写入档案 modelCache（§7.7.4） */
-    models(id: string): Promise<BackendModelsResult>
+    /** 拉取网关模型列表（支持未保存档案即填即拉）；带 profileId 且成功时写入 modelCache（§7.7.4） */
+    models(req: BackendModelsRequest): Promise<BackendModelsResult>
     globalState(): Promise<GlobalSwitchState>
     /**
      * 一键切换（§7.7.5）：写 settings.json env 键并置 isDefault。

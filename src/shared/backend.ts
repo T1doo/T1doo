@@ -70,6 +70,18 @@ export interface BackendModelsResult {
   error: string | null
 }
 
+/**
+ * 拉取模型列表的入参：支持未保存档案即填即拉（编辑器场景）。
+ * baseUrl/token 缺省时回落到 profileId 对应档案的存量值；
+ * 仅当携带 profileId 且拉取成功时回写 modelCache。
+ */
+export interface BackendModelsRequest {
+  profileId?: string
+  baseUrl?: string
+  /** 明文 token（仅内存传递；缺省 = 用档案已存密文解密） */
+  token?: string
+}
+
 // —— §7.7.5 全局切换（Q8 ✅：写 ~/.claude/settings.json env 键） ——
 
 export interface GlobalSwitchState {
