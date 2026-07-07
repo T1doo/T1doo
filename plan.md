@@ -1,6 +1,6 @@
 # T1doo — 电脑 AI 统一调度中心 · 开发计划
 
-> **文档状态**：v1.3（2026-07-05：**F4 文件中枢彻底废弃**——从 v1.1+ backlog 中移除、不再实现，主窗「文件」板块删除，见 §7.4 / §14.2。此前 v1.2：F4 裁撤出 v1、M4 取消、工期 14→12 周；v1.1 实测补强：CLI 关键行为 / JSONL 格式 / hooks / 后端环境变量逐项验证，详见 §14.2 与附录 A.6）
+> **文档状态**：v1.6（2026-07-07：**Q8 裁决通过 + hooks 退役**——全局切换（写 `~/.claude/settings.json` env 键）转正为 CLI 通道主切换机制（§7.7.5）；hooks 状态感知整体退役，替代为 JSONL 事件驱动状态机 + OTEL 评估（§7.9，新增 M9）；v1.1 周期 M7-M9 共 5 周。此前同日 v1.5：v1.1 规划立项（F8 模型中心 §7.7 / F9 用量中心 §7.8，参照 cc-switch v3.16.5 源码调研）；v1.4：M6 打磨发布代码交付；v1.3：F4 彻底废弃；v1.2：F4 裁撤出 v1、工期 14→12 周；v1.1：CLI 关键行为 / JSONL 格式 / hooks / 后端环境变量逐项实测验证，详见 §14.2 与附录 A.6）
 > **创建日期**：2026-07-03 · **升级 v1.0**：2026-07-03 · **升级 v1.1**：2026-07-04
 > **目标平台**：Windows 10 1809+ / Windows 11（开发机：Windows 11 Home，已验证）
 > **本文档用法**：这是一份"活文档"。每个里程碑完成后回来勾选验收项、修订偏差；技术决策变更时在 §14 决策日志中追加记录，不要直接删除历史结论。
@@ -61,7 +61,7 @@
 - ❌ 不做云同步、多设备、账号体系
 - ❌ 不做插件市场（内部预留扩展点即可）
 - ❌ 不做通用 Agent 框架 / 多智能体编排平台（M5 只做"任务派发给无头 Claude Code"的最小闭环）
-- ❌ 不修改、不删除 `~/.claude` 下的任何既有数据——对 Claude Code 数据目录**永远只读**（唯一例外：经用户显式授权后向 `settings.json` 注册 hooks，且可一键还原，见 §7.2.4）
+- ❌ 不修改、不删除 `~/.claude` 下的任何既有数据——对 Claude Code 数据目录**永远只读**（唯一例外 v1.0：经用户显式授权后向 `settings.json` 注册 hooks，见 §7.2.4——**已随 v1.1 hooks 退役取消**；**v1.1 起唯一例外：模型中心全局切换写 `settings.json` 的 env 键**，首次授权 + 备份 + 深合并 + 管理键记账 + 一键还原，见 §7.7.5 / Q8 裁决）
 
 ---
 
@@ -104,7 +104,7 @@
 | | 会话档案（预设目录/模型/权限模式启动） | Must | M2 |
 | | **后端档案：订阅态 + 自定义后端（baseURL/token/模型）注入切换** | Must | M2 |
 | | 终端 ↔ 历史会话双向关联跳转 | Must | M2 |
-| | 实时状态感知（hooks）+ 系统通知 | Must | M2 |
+| | 实时状态感知（hooks）+ 系统通知；**v1.1/M9：hooks 退役 → JSONL 事件驱动状态机（§7.9）** | Must | M2 → M9 重构 |
 | | 普通 shell 终端（非 Claude）支持 | Could | M2 |
 | **F3 启动器（CC 工作流入口）** | 全局热键 + 命令面板窗口 | Must | M3 |
 | | **秒跳:项目 / 会话 / 运行中终端 / 最近提示词** | Must | M3 |
@@ -116,10 +116,20 @@
 | | 双引擎：`claude` CLI 无头模式（复用登录态/后端档案）/ Anthropic API 直连（v1 仅 Claude） | Must | M5 |
 | | 本地对话历史存储与搜索 | Must | M5 |
 | | 后台任务队列（派发无头 Claude Code + 结果查看） | Should | M5 |
-| | 多供应商适配（OpenAI 兼容端点等） | Could | v1.1+ |
+| | 多供应商适配（OpenAI 兼容端点等） | Could | v1.2+（v1.1=M7/M8 不含，见 §7.7.6） |
 | **F6 指挥台** | Dashboard 首页（活跃会话/用量/最近文件/任务） | Must | M2 起逐步充实 |
 | | 系统托盘、开机自启（可选）、单实例 | Must | M0 |
-| **F7 设置 / 首启** | 首启引导；设置页（hooks 开关、后端档案、~~订阅目录~~、热键、API Key、主题、语言） | Must | M0 起逐步充实 |
+| **F7 设置 / 首启** | 首启引导；设置页（hooks 开关、后端档案、~~订阅目录~~、热键、API Key、主题、语言）；**2026-07-07 v1.1 规划：后端档案与 API 模型配置迁出至 F8 模型中心，设置页留跳转入口** | Must | M0 起逐步充实 |
+| **F8 模型中心（v1.1）** | 独立「模型」一级板块（迁出设置页）：供应商档案卡片墙 + 一键切换（作用于所有 `claude` 通道） | Must | M7 |
+| | 供应商预设模板（官方/国内直连/聚合网关，含领 Key 引导链接）+ 连通性测试 + 模型列表在线拉取 | Must | M7 |
+| | API 直连通道升级：模型自由输入（第三方网关模型名）+ 网关模型下拉 | Must | M7 |
+| | **全局切换=主切换语义**（写 `~/.claude/settings.json` env 键：首次授权/备份/深合并/冲突提示/一键还原） | Must（Q8 ✅ 2026-07-07） | M7 |
+| | 托盘菜单快速切换供应商；API 档案化（多套 API 配置） | Could | M7 |
+| **F9 用量中心（v1.1）** | 独立「用量」一级板块：自定义时间范围（今天/7 天/30 天/本月/今年/任意日期区间） | Must | M8 |
+| | 用量采集管道 v2：覆盖 subagents/wf_*、按 message.id 去重、cache 读/写四维 token | Must | M8 |
+| | 趋势图 + 分模型/分项目分布 + 缓存命中率（Recharts） | Must | M8 |
+| | 本地价目表（可编辑）+ 名义成本估算开关（§7.6 口径不变） | Should | M8 |
+| | 日聚合 rollup 控库体积 | Could | v1.2+ |
 
 ---
 
@@ -424,6 +434,8 @@ interface TerminalProfile {
 
 #### 7.2.4 实时状态感知（hooks 方案）
 
+> 🛑 **v1.1 退役（2026-07-07 用户裁决）**：hooks 方案整体退役，替代方案见 **§7.9**（JSONL 事件驱动状态机 + OTEL 评估），升级清理见 §7.9.4 / M9。本节保留为 v1.0 历史实现记录，不再维护。
+
 **方案**：T1doo 主进程启动 `HookServer`（`127.0.0.1` 随机端口，Bearer token 校验，仅回环地址）。经用户在设置页**显式开启**后，向 `~/.claude/settings.json` 注册 hooks（JSON 深合并写入——不仅保留用户已有 hooks，还须原样保留 `permissions`/`enabledPlugins`/`env` 等全部既有键，本机实测该文件已包含这些配置；可一键移除并还原备份）：
 
 | Hook 事件 | 上报后的状态推断 |
@@ -562,22 +574,205 @@ interface BackendProfile {
 
 **成本口径**：token 数始终展示；**折算美元金额仅对"API 引擎 + 已知 Anthropic 定价的模型"显示**。订阅态会话（含 Max）与自定义/第三方后端不套用 Anthropic 单价，只显示 token 数并标注"订阅内 / 自定义后端"，避免误导。补充（2026-07-04 实测）：`claude -p` 的 result 事件自带 `total_cost_usd` 与分模型 `modelUsage`——API Key 计费的 cli 任务可直接采信该值；订阅态下该数字仅为名义值，仍按上述口径只展示 token。
 
+### 7.7 F8 · 模型中心（独立「模型」板块，v1.1 · M7）
+
+> **动机**（2026-07-07 用户提出）：① API 对话通道模型是写死的三选一下拉（`src/shared/ai.ts` API_MODELS），无法填第三方模型名；② 后端档案只有一个朴素表单（无预设模板、无连通性测试——§5.2 契约里的 `test` op 从未实现、无一键切换入口）；③ 模型切换是日常高频操作，却埋在设置页里。→ 独立成一级板块「模型」。设计参照 **cc-switch v3.16.5**（Tauri 2 + React，2026-07-07 源码调研，中间产物见调研存档）：其供应商管理 = 「预设模板 + 一键切换 + 主界面/托盘双入口」。
+
+#### 7.7.1 信息架构
+
+「模型」板块统一管理两条既有通道（§7.2.6 / §7.5.1 的通道划分与鉴权机制**不变**，只动配置界面与切换入口）：
+
+| 通道 | 现状 | v1.1 升级 |
+|------|------|----------|
+| **Claude Code 通道**（终端 / 任务 / cli 引擎） | 后端档案，设置页表单增删改 | 供应商档案卡片墙 + 当前档案高亮 + 一键切换 + 预设模板 + 连通性测试，整体迁出设置页 |
+| **API 直连通道**（对话面板 api 引擎） | API Key + baseUrl + 固定三模型下拉，设置页区块 | 迁入模型板块；模型改「预设 + 自由输入」组合框，第三方网关可在线拉取模型列表 |
+
+设置页原 `AiSection` / `BackendProfilesSection` 两区块移除、留跳转入口；左导航新增「模型」（§8 布局与快捷键随之更新）。
+
+#### 7.7.2 供应商档案升级（BackendProfile v2）
+
+在 §7.2.6 结构上扩展（存储与加密机制不变：electron-store + safeStorage，token 明文不出主进程）：
+
+```ts
+interface BackendProfile {
+  // —— 既有字段全部保留（id/name/auth/baseUrl/authTokenEnc/model/smallFastModel/extraEnv/clearInheritedEnv/isDefault）——
+  presetId?: string;            // 来源预设（§7.7.3）；自由编辑后仅作溯源展示
+  category?: 'official' | 'cn_official' | 'aggregator' | 'third_party' | 'custom';
+  websiteUrl?: string;          // 控制台 / 领取 Key 页（预设自带）
+  notes?: string;
+  defaultSonnetModel?: string;  // → ANTHROPIC_DEFAULT_SONNET_MODEL
+  defaultOpusModel?: string;    // → ANTHROPIC_DEFAULT_OPUS_MODEL
+  //（smallFastModel 继续 → ANTHROPIC_DEFAULT_HAIKU_MODEL，附录 A.4；三个 DEFAULT_*_MODEL 补齐 cc-switch 同款模型映射）
+  modelCache?: string[];        // /v1/models 拉取缓存（仅辅助下拉展示，不参与注入）
+}
+```
+
+> 数据模型对照：cc-switch 把供应商存成「原样写入 live 配置的 JSON 片段（settingsConfig）+ meta 增值字段」两段式；T1doo 保持**结构化字段 + extraEnv 兜底**——按终端覆盖通道不需要 live 片段；全局切换（§7.7.5，Q8 ✅）写入时由结构化字段**生成** env 块，两者殊途同归，且结构化字段可校验、可做 UI。
+
+#### 7.7.3 供应商预设模板
+
+`src/shared/backend-presets.ts` 内置静态预设表（**只做表单预填与引导，不锁定任何字段**）：官方订阅 / Anthropic API 直连 / DeepSeek / Kimi (Moonshot) / 智谱 GLM / 通义千问 / MiniMax / OpenRouter / 自定义空白。每条含：`name / baseUrl / apiKeyUrl（领 Key 引导链接）/ category / 建议模型映射（model + DEFAULT_{HAIKU,SONNET,OPUS}）/ 备注`。预设随版本静态更新，不做在线预设市场与商业合作位（cc-switch 有 50+ 预设与 partner 机制，超出个人工具需要）。
+
+#### 7.7.4 连通性测试与模型列表拉取（新增 IPC：`backend:test` / `backend:models`）
+
+- **`backend:test`**（custom 档案）：主进程按档案组装最小探测 `GET {baseUrl}/v1/models`（回退 `/models`，5s 超时，带档案 token），返回 `{ok, latencyMs, error?}`；错误映射复用 M5 `describeApiError` 中文提示（401/403/404/超时/断网）。**不发计费请求**（不 POST messages），网关不支持 models 端点时如实提示「无法自动测试，请发起一次对话验证」。subscription 档案不做 HTTP 探测（登录态归 CLI 管），仅探测 `claude --version` 存在性。
+- **`backend:models`**：同端点拉取，兼容解析 OpenAI 形态（`{data:[{id}]}`）与 Anthropic 形态（`{data:[{id,display_name}]}`）→ 写入 `modelCache` 填充模型名下拉；失败静默降级为自由输入（R10 口径）。
+- **E2E 零额度**：测试/拉取一律打本地 mock HTTP server（fixtures 覆盖 200/401/404/超时分支），沿用既有 E2E 隔离体系。
+
+#### 7.7.5 切换机制（✅ Q8 已裁决：全局切换转正为主机制）
+
+> **Q8 裁决（2026-07-07，用户）**：「修改 CLI 模型就是改全局 `~/.claude` 里的配置文件，可以接受。」全局切换即模型中心的**主切换语义**（cc-switch 同款），不作实验性降级。`~/.claude` 唯一写入例外由 hooks（已退役，§7.9）变更为本机制（§1.4/§11 同步修订）。
+
+- **主机制 · 全局切换**：卡片墙「设为当前」→ 由档案结构化字段生成 env 块（`ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_{HAIKU,SONNET,OPUS}_MODEL` + extraEnv）写入 `~/.claude/settings.json` 的 `env` 键 → **所有** `claude` 进程（含外部手开终端）随之生效。安全机制：
+  - 首次使用一次性授权说明（此后切换不再打扰）+ 写前备份 `settings.json.t1doo.bak` + JSON 深合并（其余键分毫不动）+ 原子写（temp+rename，cc-switch atomic_write 同款）+ 一键还原；
+  - **管理键记账**：T1doo 写入的 env 键名单独持久化（electron-store），切换/还原按名单精确增删，不误伤用户自己的 env 项；
+  - **冲突检测**：切换前重读 live 文件，与上次写入不一致（用户手改 / 其它工具写入）→ 提示三选（覆盖 / 导入差异为新档案 / 取消），不静默覆盖（cc-switch「回填」机制的简化版）；
+  - **订阅态档案** = 按记账名单精确移除 T1doo 管理的 env 键，回到登录态；
+  - token 注：settings.json 的 `ANTHROPIC_AUTH_TOKEN` 为**明文**（该文件格式如此，cc-switch 亦然），UI 明示；T1doo 侧存储仍为 safeStorage 密文，日志/导出照旧脱敏（§11）。
+- **覆盖机制 · 按终端注入**（保留）：新建终端/任务对话框仍可临时选任一档案，仅对该子进程生效、不动全局；已运行终端不受全局切换影响（env 为启动时快照，卡片提示「重开生效」）。⚠️ 实现细节：全局 env 块生效后，子进程环境变量能否覆盖 settings.json env 的优先级**未见文档**——按终端覆盖改走 `claude --settings '<json>'` 内联 env（CLI args > User settings 为文档化优先级，附录 A.4 已核 env 块可用），M7 实测定案。
+- 一键切换交互：卡片墙点击即切（当前档案高亮 + 「当前」角标 + 切换 toast）；托盘菜单「切换后端」子菜单（Could）。
+
+#### 7.7.6 API 直连通道升级
+
+- 模型选择改**组合框**：内置 `API_MODELS` 预设分组 + 历史用过的模型 + **自由输入任意模型 id**（第三方 Anthropic 兼容网关的模型名直填即用）；baseUrl 非官方端点时自动经 `backend:models` 拉取网关模型列表填充下拉。
+- 仍走 `@anthropic-ai/sdk`（Anthropic 协议），**不改变 Q4 边界**——OpenAI 协议适配仍为 v1.2+ Could；自由模型名在具体网关上的兼容性风险归 R10 口径（失败时错误明确提示，不猜测）。
+- （Should）**API 档案化**：`{name, baseUrl, keyEnc, model}` 保存多套并一键切换，与供应商卡片同页并列展示——UI 结构与 CLI 通道对齐，实现共用卡片组件。
+
+#### 7.7.7 测试与迁移
+
+- 单测：档案 v2 序列化兼容（旧档案无新字段可加载）、env 块生成（§7.7.5 全局切换）、models 响应双形态解析。
+- E2E：从预设建档 → 一键切换 → 假 claude（`T1DOO_CLAUDE_CMD`）回显 env 断言注入正确（零额度）；全局切换 settings.json 写入→切换→还原与原文件深度相等 + 备份存在 + 冲突提示分支（深合并/精确移除模块复用自 hooks 注册器，其单测口径保留）；设置页迁移后旧入口跳转正确。
+- 数据迁移：electron-store 中既有档案原样兼容（新字段全可选），无迁移脚本。
+
+### 7.8 F9 · 用量中心（独立「用量」板块，v1.1 · M8）
+
+> **动机**（2026-07-07 用户提出）：Dashboard 现有用量卡片只有近 14 天 div 柱条 + 今日/本周合计——无自定义时间范围、无分模型/分项目维度、无 cache token、图表简陋。→ 独立成一级板块「用量」，用正经图表展示用量与变化。采集与聚合方法参照 cc-switch `session_usage.rs` / `usage_stats.rs`（2026-07-07 源码调研）。
+
+#### 7.8.1 现状缺口（为什么不能直接用 messages 表出数）
+
+| 缺口 | 说明 |
+|------|------|
+| 漏子代理/工作流 | F1 裁决 subagents/wf_* 不入索引（§6.3-0，占本机数据 ~43%）——但其 token 消耗真实发生，用量必须计入（cc-switch 同样扫描 subagents 子目录） |
+| 缺 cache 维度 | messages 只存 input/output；cache_read 仅会话级合计、cache_creation 完全未采集——Claude Code 重缓存负载下 cache 常是大头，缓存命中率是关键指标 |
+| 流式快照重复计数 | 同一 assistant `message.id` 会落多条增量快照行（messages 按行 uuid 存储），直接 SUM 系统性偏高——现状 `usageDaily` 即带此偏差 |
+| 无成本/模型/项目聚合维度 | 无价目表；分模型/分项目查询无预设口径 |
+
+**结论：新建独立的 `usage_log` 明细表 + 轻量采集管道**，不动 F1 索引边界（subagents 仍不入 FTS/messages）。
+
+#### 7.8.2 数据管道（cc-switch 口径，含其踩坑修正）
+
+```sql
+CREATE TABLE usage_log (
+  message_id TEXT PRIMARY KEY,          -- assistant message.id（去重键，非 JSONL 行 uuid）
+  session_id TEXT, project_path TEXT,
+  model TEXT, ts INTEGER,
+  input_tokens INTEGER DEFAULT 0, output_tokens INTEGER DEFAULT 0,
+  cache_read_tokens INTEGER DEFAULT 0, cache_creation_tokens INTEGER DEFAULT 0,
+  stop_reason TEXT,
+  source TEXT,                          -- 'session' | 'subagent' | 'workflow' | 'api-panel' | 'cli-panel'
+  backend_profile_id TEXT               -- T1doo 内 spawn 的会话经绑定可溯源到供应商档案；外部会话 NULL
+);
+CREATE INDEX idx_usage_ts ON usage_log(ts);
+CREATE INDEX idx_usage_model ON usage_log(model, ts);
+CREATE TABLE usage_sync (file_path TEXT PRIMARY KEY, mtime_ms INTEGER, byte_offset INTEGER);
+CREATE TABLE model_pricing (
+  model_id TEXT PRIMARY KEY, display_name TEXT,
+  input_per_m TEXT, output_per_m TEXT,          -- 单价一律 TEXT 存 Decimal 字符串（避免浮点误差，cc-switch 同款）
+  cache_read_per_m TEXT, cache_write_per_m TEXT,
+  is_builtin INTEGER DEFAULT 0
+);
+```
+
+采集规则（关键细节均为 cc-switch 源码实证结论）：
+
+1. **扫描范围**：顶层主会话 JSONL（复用 F1 worker 流水线顺带产出，parser 补采 `cache_creation_input_tokens`——现仅采 read，§6.1）+ `<sessionId>/subagents/*.jsonl`、`wf_*/**.jsonl` 走**独立轻量扫描器**：worker 内只匹配 `type=="assistant"` 行提取 `message.id / model / usage 四元组 / stop_reason / timestamp`，不建 FTS、不存正文、不进 messages 表——与 F1「不入索引」裁决不冲突。
+2. **按 message.id 去重**：同 id 多条快照 → 优先保留 `stop_reason` 非空者，其次 `output_tokens` 更大者（写库时按此裁决 REPLACE）。
+3. **计入门槛**：任一计费维度 > 0 即计入。⚠️ 不得按「stop_reason 非空 && output>0」过滤——cc-switch 源码注释实证该口径**系统性低估 ~4.1%**（并行子代理常只留 message_start 快照）。
+4. **面板来源并入**：F5 api 引擎回合（SDK usage 回传，主键 `api:<messageId>`）与 cli 引擎面板回合（`--no-session-persistence` 不落 JSONL，从 stream-json result 事件补记，主键 `cli:<sessionId>:<turn>`）实时写入，source 区分——全局一张表出数。**任务队列不单独采集**：其会话正常落盘 JSONL，已被 session 来源覆盖，重复采集会双算（cc-switch 需跨源去重正因代理与转录双通道，T1doo 主动避免双源）。
+5. **增量**：usage_sync 记 `(mtime_ms, byte_offset)` 续读 + 半行容错（§6.3 同款）；chokidar 监听放宽到会话子目录（仅用量扫描器消费该 depth 的事件，F1 仍只看顶层）。
+
+#### 7.8.3 聚合与成本
+
+- 聚合查询（DAO 单发 SQL GROUP BY，避免 N+1）：`summary(range)`（四类 token / 请求数 / **缓存命中率 = cache_read ÷ (input + cache_creation + cache_read)**）、`trend(range)`、`byModel(range)`、`byProject(range)`、`bySource(range)`；新增 IPC `usage:query` 一个入口带 kind 参数。
+- **分桶**：范围 ≤ 48h 按小时桶；≤ 92 天按本地日（沿用 dao.ts dayKey 本地时区切日口径）；更长按月。
+- **成本估算**：内置种子价目（Opus 4.8 = 5/25、Sonnet 5 = 3/15、Haiku 4.5 = 1/5 美元/百万 token，cache 读/写单价按官方价表落准）+ 模型名归一匹配（剥 `anthropic/` 类前缀、`.`→`-`、日期后缀走前缀 LIKE——应对第三方网关的模型名变体，cc-switch 同款）+ 板块内可编辑价目（改内置项即复制为用户项）。**§7.6 成本口径不变**：订阅态/自定义后端默认只显 token；新增「显示名义成本估算」开关（默认关，开启后金额恒带「估算」标注与口径说明）。
+- **rollup 缓行**：本机现量（~2.2 万 assistant 行 + 子代理）明细直聚合为毫秒级，`usage_daily_rollups` 不建；明细超 100 万行或聚合超 100ms 时再引入（Could，v1.2+）。
+
+#### 7.8.4 UI（「用量」板块）
+
+- **筛选栏**：时间预设 `今天 / 7 天 / 30 天 / 本月 / 今年 / 自定义`（自定义=双日历日期区间选择器）＋ 项目 / 模型 / 来源下拉；cc-switch 另有 0-60s 自动刷新档位，T1doo 走事件推送（增量同步完成即失效查询），不做轮询。
+- **Hero 指标卡**：总 token（in / out / cache 分列）、请求数、缓存命中率、估算成本（开关开启时）。
+- **趋势图**：堆叠柱状/面积双模式（input / output / cache_read / cache_creation 四序列可开关），小时/日/月桶自适应；tooltip 展示完整数值。
+- **分布区**：分模型条形图 + 明细表（token / 请求数 / 单请求均值 / 估算成本）；分项目 Top-N 条形；来源占比（终端 / 面板 / 任务·子代理）。
+- **图表库裁决**：**Recharts**（cc-switch 同款 AreaChart 体系；React 组件式、按需 tree-shaking、颜色走 CSS 变量适配暗/亮主题）。打包增量预估 gzip ~100KB，§10.3 安装包预算（<150MB，现 98.6MB）无压力；若实测超预算再降级自绘 SVG。
+- Dashboard 现有用量卡片精简保留（今日/7 天 + 迷你趋势），点击跳转本板块。
+
+#### 7.8.5 性能预算（M8 并入 §10.3 审计，perf-audit 脚本扩项）
+
+| 指标 | 预算 |
+|------|------|
+| 用量首扫（含 subagents/wf_*，本机基线 ~1,700 文件 / 513MB） | < 30s 后台完成，期间 UI 无卡顿（worker 解析 + 主线程批量写库，§5.1 原则 3） |
+| 日常增量（单会话一轮交互） | < 300ms 反映到板块（含防抖） |
+| 聚合查询（任意时间范围/维度） | < 100ms |
+| usage_log 增量库体积 | < 30MB（本机基线） |
+
+### 7.9 F2 · 状态感知 v2：hooks 退役（v1.1 · M9）
+
+> **裁决**（2026-07-07，用户）：hooks 方案（§7.2.4）整体退役——机制不讨喜（向 settings.json 注册全局 hooks、所有会话的每个事件都 spawn 一条 `cmd`+`curl`），且经官方文档核实**并非必要**。§7.2.4 保留为 v1.0 历史实现记录。
+
+#### 7.9.1 替代通道核实结论（2026-07-07，claude-code-guide 官方文档核对）
+
+| 通道 | 结论 |
+|------|------|
+| `--settings` 内联 per-session hooks | ❌ 文档不支持（hooks 键为覆盖语义、无会话级隔离）——此路不通 |
+| 终端铃声（BEL）等待信号 | ❌「等待批准时响铃」仍是 feature request（anthropics/claude-code#36850），未实现，不可依赖 |
+| JSONL 事件驱动推断 | ✅ **主方案**：与 F1 同数据源，working/idle 确定性推断，waiting 走启发式（见 7.9.2） |
+| OTEL 遥测 | ⚠️ traces 有 `claude_code.tool.blocked_on_user` 跨度（语义=正在等用户批准）；OTLP 端点纯 env 配置——可只注入 T1doo 拉起的进程、零文件写入。但需 `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1`，且该文档归于 Agent SDK 章节，**交互式 CLI 是否发出未证实 → M9 实测 spike（7.9.3）** |
+
+#### 7.9.2 JSONL 事件驱动状态机（默认且唯一路径）
+
+复用 F1 增量同步管道（chokidar + 追加解析，M1 实测增量感知 ~323ms），在解析回调上挂状态机，**不新增任何 I/O 与配置**：
+
+| 观测到 | 推断状态 |
+|--------|---------|
+| 新 user 行（非 tool_result 载荷） | → `working`（开始处理） |
+| 新 assistant 行含 `tool_use`，其后 **T 秒**（默认 2s，可调）无后续行 | → `waiting`（等待权限确认）+ 系统通知 |
+| tool_result（user 行）到达 | → `working`（确认已给出 / 工具完成） |
+| assistant 末行无悬挂 tool_use 且无新行 | → `idle`（回合结束） |
+| 长时间无写入 / 绑定进程退出 | → `idle` / `ended` |
+
+- **精度增强**：JSONL 行自带 `permissionMode`——`bypassPermissions` / `acceptEdits` 会话对相应工具类别抑制 waiting 判定，降低误报；`isSidechain=true` 行不参与主状态。
+- **如实展示局限**：无法区分「等确认」与「工具执行慢」，waiting 为**推断值**——UI 用与 v1.0 hooks 确定值不同的样式（空心角标）标注；通知延迟 ~0.5–3s，U4 的 3 秒承诺仍守住。
+- **覆盖范围优于 hooks 默认态**：内置终端与外部手开会话一视同仁（同一数据源），无需任何注册动作。
+
+#### 7.9.3 OTEL spike（M9 内 0.5 天，采信须实测）
+
+内置终端 spawn 时注入 `CLAUDE_CODE_ENABLE_TELEMETRY=1` + `OTEL_TRACES_EXPORTER=otlp` + `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:<port>` + `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1`，T1doo 起本地最小 OTLP/HTTP 接收端，实测交互式会话是否发出 `claude_code.tool.blocked_on_user` 跨度及其延迟。**成立** → v1.2 为内置终端接入确定性 waiting 信号（外部会话仍走 JSONL 推断）；**不成立** → JSONL 推断即最终方案。结论记 §14.2，不阻塞 M9 交付。
+
+#### 7.9.4 退役与迁移
+
+- **删除**：HookServer（127.0.0.1 HTTP 服务）、hooks 注册/还原模块（深合并/精确移除工具函数**保留**——移交 §7.7.5 全局切换复用）、设置页 HooksSection、首启引导 hooks 步（改为状态感知说明页，无授权动作）。
+- **升级清理**：v1.1 首次启动检测 `~/.claude/settings.json` 中带 `/t1doo-hook` 标记的条目 → 自动精确移除（沿用既有移除逻辑与「深度相等」测试口径），其余键分毫不动；清理完成后 UI 一次性告知。
+- **不受影响**：任务队列 `--include-hook-events`（stream-json 内联事件，与 HookServer 无关，§7.5.2）；`--session-id` 主绑定路径（§7.2.3，R8 已实测）。SessionStart 权威校正随 hooks 退役取消——仅影响「shell 终端里手敲 claude」边角场景的绑定精度（启发式关联仍在）。
+- **原则修订**：`~/.claude` 唯一写入例外由「hooks 注册」变更为「模型中心全局切换 env 键」（§1.4 / §11 已同步）。
+
 ---
 
 ## 8. UI/UX 设计
 
-- **布局**：左侧图标导航栏（Dashboard / 会话 / 终端 / 对话 / 任务 / 设置，「文件」已随 F4 废弃移除）+ 内容区；全局顶部无标题栏（自绘窗口控制按钮），拖拽区约定。
+- **布局**：左侧图标导航栏（Dashboard / 会话 / 终端 / 对话 / 任务 / 设置，「文件」已随 F4 废弃移除；**v1.1 起新增「模型」「用量」两项，插在任务与设置之间**，见 §7.7/§7.8）+ 内容区；全局顶部无标题栏（自绘窗口控制按钮），拖拽区约定。
 - **主题**：暗色默认，亮色可切；强调色单一（品牌色待定），大量留白 + 等宽字体用于代码/终端（默认 Cascadia Code，可配）。
-- **键盘体系**：`Alt+Space` 全局启动器；应用内 `Ctrl+K` 命令面板（复用启动器组件）；`Ctrl+1..7` 切页；终端快捷键见 §7.2.5。所有快捷键集中在设置页可改。
+- **键盘体系**：`Alt+Space` 全局启动器；应用内 `Ctrl+K` 命令面板（复用启动器组件）；`Ctrl+1..7` 切页（v1.1 导航增至 8 项后扩展为 `Ctrl+1..8`）；终端快捷键见 §7.2.5。所有快捷键集中在设置页可改。
 - **语言**：UI 文案走 i18n 资源（`zh-CN` 默认，`en` 骨架），M6 补全。
 - **通知策略**：仅两类默认开启——"会话等待你的输入"、"后台任务完成/失败"。其余一律不打扰。
-- **首启引导**：四步——① 检测 Claude Code 并首次索引历史会话（进度条）；② 建议订阅目录；③（可选）开启 hooks 状态感知，说明写入 settings.json 的内容与还原方式；④（可选）配置后端档案（订阅态开箱即用，可加自定义后端）。
+- **首启引导**：四步——① 检测 Claude Code 并首次索引历史会话（进度条）；② 建议订阅目录；③（可选）开启 hooks 状态感知，说明写入 settings.json 的内容与还原方式（**v1.1/M9 hooks 退役：此步改为状态感知说明页，无授权动作**，§7.9.4）；④（可选）配置后端档案（订阅态开箱即用，可加自定义后端）。
 
 ---
 
 ## 9. 里程碑与迭代计划
 
 > 工期假设：单人开发 + AI 辅助，每周有效投入 ≈ 20h。总计 ~~14 周（约 3.5 个月）~~ **12 周（约 3 个月）到 v1.0**（2026-07-04 起：M4 文件中枢裁撤，M5/M6 前移两周）。每个里程碑结束时产出可运行、可日常使用的版本（打 tag）。
+> **v1.1 周期（2026-07-07 规划立项，同日 Q8 裁决通过 + hooks 退役决定）**：M7 模型中心 + M8 用量中心 + M9 状态感知 v2·hooks 退役，共 5 周（第 13-17 周），交付后发布 **v1.1.0**；方案见 §7.7–§7.9。
 
 | 里程碑 | 周期 | 交付内容 | 验收标准（可测量） |
 |--------|------|---------|-------------------|
@@ -588,6 +783,9 @@ interface BackendProfile {
 | **M4 文件中枢** 🛑 已裁撤（2026-07-04），F4 于 2026-07-05 彻底废弃 | ~~第 9-10 周~~ | 当日已完整实现（订阅目录索引 Worker+chokidar+FTS5 / 联动 UI / Everything 桥 / 文件页与设置区块 / 15 项单测 / E2E 全绿）并通过验收①-⑤ 后整体裁撤：量化数据与动因见 §14.2；代码单提交存档于 `feat/m4-files` 分支（不合并、不删除，仅历史参考） | —（会话-文件联动数据继续随 M1 采集；F4 不再实现） |
 | **M5 AI 能力** ✅ 2026-07-05 | 第 9-10 周（原 11-12） | 对话面板（流式/Markdown/高亮/历史落库可搜）；双引擎（cli 默认 + api 可配，Key 走 safeStorage）；启动器 `@` 提问接通；任务队列最小闭环 | ① ✅ cli 引擎流式对话 E2E 全通（`scripts/e2e-ai.cjs`：delta 中间态/Markdown 渲染/多轮长连；假 claude 经 `T1DOO_CLAUDE_CMD` 注入，零额度）；api 引擎无 Key → 明确中文提示 E2E 实测，401/403/404/429/断网各错误码映射为明确提示（`describeApiError`），**真实 API 流式与自定义网关留手动点验**（避免耗费）；② ✅ E2E 读盘断言：`ai-api.json` 仅存 DPAPI 密文（`apiKeyEnc`）、明文 Key 不出现在磁盘、UI 仅显示尾 4 位；③ ✅ 提交 → 并发调度（上限 2）→ result 事件采集（session_id/total_cost_usd/usage/num_turns）→ done → 输出查看 +「查看会话」跳转会话中心，E2E 全程走通；完成/失败系统通知与 M2 同链路（**真实弹窗体感留手动点验**）；④ ✅ 对话历史 FTS 搜索命中 + snippet 高亮（CJK 一元切分与 F1 同口径）。启动器 `@` 提问 → 主窗对话页自动聚焦新对话并流式作答 E2E 通过。另：3 个单测文件 20 项（stream-json 白名单容错/半行、双引擎与任务参数构造、任务状态机含并发/取消/竞争）+ M1-M3 E2E 回归全绿；主窗「文件」板块随 2026-07-05 F4 彻底废弃一并移除（原 M6 占位页降级项就此了结） |
 | **M6 打磨发布** 🔨 2026-07-07 代码交付 | 第 11-12 周（原 13-14） | 性能与内存审计（§10.3 预算达标）；i18n 补全；首启引导；NSIS+portable 打包；electron-updater（GitHub Releases）；README/使用文档；~~主窗「文件」占位页降级处理~~（已随 2026-07-05 F4 彻底废弃提前移除） | ① ✅ 冷启动实测 0.83–1.18s < 3s（§10.3 六项全达标，`scripts/perf-audit.cjs` 可复跑）；② ✅ 常驻内存 259MB（私有工作集）< 350MB；③ 安装→使用→自动更新→卸载全流程**留干净虚拟机手动验证**（更新链路代码就绪：publish 配置 + latest.yml + 设置页入口，E2E 覆盖 UI 态）；④ v1.0.0 tag + Release **留 PR 合并后执行**（release.yml 流水线就绪）。另：i18n ~300 key 全量抽取 + en 补全（切换往返 E2E 实测）；首启四步向导 E2E 走查通过；89 单测全绿 |
+| **M7 模型中心（F8，v1.1）** | 第 13-14 周 | 「模型」一级板块；供应商档案 v2（预设模板 ≥8 家 / 卡片墙一键切换 / 连通性测试 / 模型列表在线拉取 / DEFAULT_{SONNET,OPUS} 映射补全）；API 通道模型自由输入 + 网关模型下拉；设置页两区块迁出留跳转；**全局切换主机制**（首次一次性授权 / 备份 / 深合并 / 冲突三选 / 一键还原 / 管理键记账，Q8 ✅）；托盘快速切换与 API 档案化（Could） | ① 从预设建档一键预填（E2E）；② 切换默认档案 → 新建终端 env 注入断言（假 claude 回显 env，零额度）；③ 连通性测试对本地 mock 网关 200/401/404/超时四分支中文提示（E2E）；④ `/v1/models` 拉取填充下拉 + 失败降级自由输入（mock E2E）；⑤ API 通道保存任意模型名，读盘断言生效且明文 Key 不落盘（M5 同口径）；⑥ 全局切换：settings.json 写入→切换→还原与原文件深度相等 + 备份存在 + 外部手改后切换触发冲突提示、不静默覆盖（单测+E2E，深合并/精确移除模块复用自 hooks 注册器）；⑦ 旧档案数据无损加载（兼容单测）+ 导航/快捷键/设置页跳转 E2E + M1-M5 回归全绿；**真实第三方网关连通留手动点验**（M2 同口径） |
+| **M8 用量中心（F9，v1.1）** | 第 15-16 周 | 「用量」一级板块；usage_log 独立采集管道（subagents/wf_* 全覆盖、message.id 去重、cache 四维、api/cli 面板来源并入、任务不双采）；六档时间范围（含自定义日期区间）；Recharts 趋势/分布图 + Hero 指标卡 + 缓存命中率；价目表可编辑 + 名义成本开关；Dashboard 卡片精简接跳转 | ① 首扫含 subagents（本机基线 ~1,700 文件 / 513MB）后台 < 30s、期间 UI 可交互（E2E 量测）；② message.id 去重（stop_reason 优先/output 最大）+「任一 token>0 计入」口径 fixtures 单测；与 ccusage 对拍误差 < 1%（脚本或手动）；③ 六档时间范围聚合正确性单测（本地时区切日、跨月、小时/日/月分桶边界）；④ §7.8.5 四项预算全达标并纳入 perf-audit 复跑；⑤ 图表以 fixtures 数据注入 E2E 断言渲染（暗/亮主题）；⑥ 定价归一匹配单测（前缀/日期后缀/`.`变体）+ 成本开关默认关、开启恒带「估算」标注（E2E）；⑦ M1-M7 E2E 回归全绿 |
+| **M9 状态感知 v2 · hooks 退役（F2，v1.1）** | 第 17 周 | JSONL 事件驱动状态机成为默认且唯一路径（复用 F1 增量管道：user 行→working、回合终止→idle、尾部 tool_use 悬挂超阈值→waiting+通知，§7.9.2）；OTEL 通道实测 spike（验证交互式 CLI 是否发 `claude_code.tool.blocked_on_user` 跨度，§7.9.3）；hooks 全面退役：HookServer / 注册还原模块 / 设置页 HooksSection / 首启引导 hooks 步删除，升级时自动清理既有注册 | ① 状态机 fixtures 单测（working/waiting/idle 全流转 + 悬挂 tool_use 阈值边界 + permissionMode 抑制分支）；② E2E：假 claude 追加写 JSONL → 状态角标与 waiting 通知 ≤3s（U4 承诺保持，零额度）；③ 升级清理：预置带 `/t1doo-hook` 注册的 settings.json → 启动后精确移除且其余键深度相等（复用既有单测口径 + E2E）；④ OTEL spike 结论记入 §14.2（成立→内置终端接入排 v1.2；不成立→JSONL 推断即最终方案）；⑤ M1-M8 E2E 回归全绿（涉 hooks 的断言改写为状态机口径） |
 
 **里程碑间的机动**：每个里程碑预留 15% 时间做上一里程碑的缺陷修复；若 M2 hooks 方案遇阻（Claude Code 行为变更），降级方案（mtime 轮询）保底交付，不阻塞后续里程碑。
 
@@ -630,7 +828,7 @@ interface BackendProfile {
 |------|------|
 | 渲染进程隔离 | `contextIsolation: true`、`sandbox: true`、`nodeIntegration: false`、CSP 严格、禁用 `remote` |
 | API Key / 后端档案 token 存储 | `safeStorage`（Windows DPAPI）加密后存本地；UI 仅显示尾 4 位；日志/导出中全局脱敏；后端 token 仅在 spawn 时解密注入目标 `claude` 子进程 env，不写 shell 历史 |
-| Claude 数据目录 | 只读原则；唯一写入点为 hooks 注册（显式授权 + 写前备份 + 一键还原）；`.credentials.json` 列入硬编码黑名单绝不读取 |
+| Claude 数据目录 | 只读原则；唯一写入点 v1.0=hooks 注册 → **v1.1=模型中心全局切换 env 键**（首次授权 + 写前备份 + 深合并 + 管理键记账精确增删 + 一键还原，§7.7.5/§7.9.4）；`.credentials.json` 列入硬编码黑名单绝不读取 |
 | HookServer | 仅绑定 `127.0.0.1`；随机高位端口 + Bearer token；仅接受 POST /hook；请求体大小限制 |
 | 命令执行面 | 启动器/任务队列拼接命令一律走 `spawn` 参数数组（不经 shell 字符串拼接），杜绝注入 |
 | 危险选项 | `--dangerously-skip-permissions` 类选项默认关闭 + 二次确认 + 醒目标识 |
@@ -644,7 +842,7 @@ interface BackendProfile {
 | # | 风险 | 概率 | 影响 | 应对 |
 |---|------|:--:|:--:|------|
 | R1 | **Claude Code JSONL/目录结构是内部格式，版本升级可能破坏解析**（最大风险） | 高 | 高 | 白名单容错解析（未知即跳过不崩）；fixtures 回归；`cc_version` 落库便于定位漂移；核心功能（终端/启动器/文件）不依赖解析成功。**2026-07-04 已现实证**：全量扫描发现 1 行坏行、`summary` 类型已被 `ai-title`/`custom-title` 取代、新增 `subagents`/`wf_*` 嵌套目录——白名单+实测优先的策略被验证正确 |
-| R2 | hooks 配置结构或事件语义随 Claude Code 变更 | 中 | 中 | hooks 为增强而非依赖；mtime 轮询降级路径始终保留；注册前探测版本 |
+| R2 | hooks 配置结构或事件语义随 Claude Code 变更 | 中 | 中 | hooks 为增强而非依赖；mtime 轮询降级路径始终保留；注册前探测版本。**2026-07-07 关闭**：v1.1 hooks 整体退役（§7.9），状态感知改 JSONL 推断，格式漂移风险并入 R1 |
 | R3 | node-pty/better-sqlite3 与 Electron ABI 不匹配导致构建失败 | 中 | 中 | electron-rebuild 进 postinstall；锁版本；CI 在干净 Windows runner 上验证打包产物 |
 | R4 | 多终端 + 索引导致内存/CPU 失控 | 中 | 中 | §10.3 预算硬指标；环形缓冲上限；Worker 隔离；chokidar 排除大目录默认规则 |
 | R5 | 全局热键与系统/其它软件冲突（Alt+Space 是 PowerToys Run 默认键） | 高 | 低 | 注册失败即提示改绑；首启引导中确认 |
@@ -654,6 +852,8 @@ interface BackendProfile {
 | R9 | 中文全文搜索效果不佳（unicode61 按字切分：裸词匹配噪声大） | 中 | 中 | **M1 即评估 `simple` 分词器（中文分词+拼音）**；短语查询语法兜底；注意其为原生扩展、打包需加载 DLL（与 R3 同类） |
 | R10 | 第三方/自定义后端与 Claude Code 兼容性参差（工具调用、`stream-json` 格式、`--session-id` 支持差异） | 中 | 中 | 后端档案标注能力；订阅态为默认与保底；异常时明确提示"该后端不支持 X"；解析层对缺字段容错 |
 | R11 | 开发机未安装 Everything（2026-07-04 实测 `es.exe` 不在 PATH），第二层集成缺乏日常真实验证 | 高 | 低 | ~~M4 开工时先安装 Everything 实测；若验证成本超预期，降级为"仅检测+引导安装"，不做结果合并~~ **2026-07-04 关闭**：已经 winget 装机（`voidtools.Everything` + `voidtools.Everything.Cli`）并实测 es.exe 桥接可行（`-export-txt` UTF-8 中转避 GBK 乱码、`file:` 限定、按修改时间排序，E2E 合并/来源标注全通过）；随后 F4 整体裁撤出 v1（§14.2），本风险失效。开发机保留 Everything 供日常使用 |
+| R12 | **全局切换写 `~/.claude/settings.json`**（v1.1，Q8 已裁决转正）：与 Claude Code 自身写该文件竞态，用户手改可能被覆盖 | 中 | 中 | 首次使用一次性授权；写前重读最新文件深合并 + 原子写 + 备份 + 一键还原 + 管理键记账精确增删；检测 live 漂移提示冲突三选、不静默覆盖；按终端 `--settings` 覆盖通道始终可用（§7.7.5） |
+| R13 | 本地价目表随官方调价过期，成本估算失真误导（v1.1） | 中 | 低 | 默认只显 token（§7.6 口径不变）；金额恒标「估算」；价目表板块内可编辑；（Could）提供「对照 models.dev 校验」辅助入口 |
 
 ---
 
@@ -668,7 +868,7 @@ interface BackendProfile {
 
 ## 14. 开放问题与决策日志
 
-### 14.1 开放问题裁决（2026-07-03 已全部拍板 → 升级 v1.0）
+### 14.1 开放问题裁决（2026-07-03 Q1-Q7 已全部拍板 → 升级 v1.0；2026-07-07 Q8 提出并于同日裁决通过）
 
 | # | 问题 | 裁决 | 影响 |
 |---|------|------|------|
@@ -679,6 +879,7 @@ interface BackendProfile {
 | Q5 | 默认语言 zh-CN？ | ✅ 是（`en` 骨架，M6 补全） | §8 |
 | Q6 | 开源 / 私有？ | ✅ 先私有仓开发 | §13 |
 | Q7 | 全局热键默认键？ | ✅ `Alt+Space`，与 PowerToys Run 冲突时首启引导改绑 | §7.3 / R5 |
+| Q8 | **v1.1 全局切换**：是否允许把供应商档案 env 块写入 `~/.claude/settings.json`（cc-switch 核心机制）？ | ✅ **裁决通过（2026-07-07 同日用户裁决）**：「修改 CLI 模型就是改全局 `~/.claude` 配置文件，可以接受」——全局切换**转正为模型中心主切换机制**（非实验性），安全机制全套保留（首次授权/备份/深合并/原子写/冲突三选/管理键记账/一键还原，§7.7.5）；按终端 env 注入降级为覆盖机制。同时裁决 **hooks 整体退役**（§7.9），`~/.claude` 唯一写入例外由 hooks 换为本机制 | §7.7.5 / §7.9 / R12 |
 
 ### 14.2 决策日志
 
@@ -703,6 +904,8 @@ interface BackendProfile {
 | 2026-07-05 | **F4 文件中枢彻底废弃（用户裁决，M5 验收通过后）**：从 v1.1+ backlog 中移除，**以后也不实现**——2026-07-04 的裁撤已证明该方向与产品定位不可调和，backlog 挂着徒增心智负担。处置：① §7.4 原方案全文删除（完整方案与实现仅存 `feat/m4-files` 分支作历史参考）；② 主窗「文件」导航项与占位页从应用中删除（PlaceholderPage 组件一并移除）；③ §6.2 草案中 watched_dirs/files/files_fts 表定义删除；④ **保留** `session_files` 联动数据采集（服务 F6 Dashboard「最近文件」与 F1 会话反查，与文件系统扫描无关）；⑤ Everything 保留为开发机个人工具，与产品无关 | 用户裁决（§1.4/§3/§7.4） |
 | 2026-07-05 | **M5 落地细节**：① `evt:ai:delta` 发送**累计全文**而非增量（渲染层整包替换、天然幂等，切页/慢订阅不丢字；40ms 节流合并降 IPC 压力）；② cli 引擎默认 `--tools ""` 纯问答 + `--no-session-persistence`（面板对话不涌入 F1 会话中心）；进程按对话长连（§7.5.1 裁决落地），意外退出时下一回合重拉新进程（上下文丢失属边角，接受）；③ `conv_fts` 用**独立 FTS5 表**（非 external-content）由 AiDao 显式增删——绕开 M1 在 messages_fts 踩过的手动同步与 FK 级联不触发触发器两个坑；conv_messages.content 存原文供渲染、FTS 存 CJK 切分形态；④ 新增 `T1DOO_CLAUDE_CMD` 测试注入（E2E 假 claude `scripts/fake-claude.cjs` 按 stream-json 协议回放，零额度消耗）——加入 E2E 隔离环境体系；必须用它而非 PATH 前置：resolveClaudeCommand 优先 .exe 会命中真实 claude；⑤ 任务队列 spawn 可注入供单测（状态机 6 项）；result 与 close 事件竞争以先落终态者为准，重复不落库；应用启动时残留 running/queued 任务统一标记失败 | M5 实装结论（§7.5） |
 | 2026-07-07 | **M6 落地细节**：① i18n 自研轻量方案（零依赖）——`src/shared/i18n` 命名空间字典每条 `{zh,en}` 相邻存放，`keyof` 派生 key 联合类型、**en 完整性由 tsc 强制**；渲染层 I18nProvider 订阅 settings 即时切换，主进程模块单例 t()（托盘菜单语言变更时重建）；主进程侧在字符串**生成时**翻译（启动器条目/通知/错误），语言切换后下次生成即生效；日志与注释保持中文不入字典；② 首启引导四步中原「订阅目录」步骤随 F4 废弃删除，替换为语言选择步；`onboardingDone` 落 settings，五个 E2E 脚本预置 userData/settings.json 跳过向导覆盖层；③ 更新策略落地：autoDownload 后台下载 + 用户点「重启并安装」才 quitAndInstall（autoInstallOnAppQuit 兜底）；portable zip 不支持自动更新（NSIS-only），README 注明手动替换；④ 审计口径：常驻内存用**私有工作集**（任务管理器同口径）——WorkingSet64 对 8 进程 Chromium 树重复计共享页（686MB vs 259MB 实测差 2.6 倍）；开发机 %APPDATA% 常驻实例的 WAL 库外部只读打开会报 malformed schema（readonly 无法做 WAL recovery），量测走"隔离索引→干净退出→再读"路径 | M6 实装结论（§8/§10.3/§13） |
+| 2026-07-07 | **v1.1 规划立项：F8 模型中心 + F9 用量中心（M7/M8，用户三点优化诉求 + cc-switch v3.16.5 源码调研）**。① 用户诉求：API 通道不能填第三方模型名、后端档案表单简陋、模型切换与用量都应从设置/Dashboard 独立成一级板块、用量要自定义时间范围与精美图表；② F8 方案（§7.7）：供应商档案 v2（预设模板/卡片墙一键切换/连通性测试 `backend:test`/模型列表拉取 `backend:models`/DEFAULT_{SONNET,OPUS} 映射补全），API 通道模型改组合框自由输入（Q4 边界不变，仍 Anthropic 协议）；全局切换（写 settings.json env 块）列 **Q8 待裁决**；③ F9 方案（§7.8）：新建 usage_log 独立采集管道——覆盖 subagents/wf_*（本机 ~43% 存量，F1 不入索引裁决不变）、按 message.id 去重（stop_reason 优先/output 最大）、「任一 token>0 计入」（cc-switch 实证旧口径低估 ~4.1%）、补采 cache_creation、面板来源并入且任务不双采；六档时间范围 + 小时/日/月自适应分桶；价目 Decimal 字符串存储 + 归一匹配 + 可编辑；成本口径沿 §7.6 不变（名义成本开关默认关）；④ 图表库裁决：Recharts（cc-switch 同款，gzip ~100KB 不威胁包体积预算）；⑤ 借鉴但明确不抄的部分：本地代理接管/格式转换（Anthropic↔OpenAI↔Gemini）、多应用管理（Codex/Gemini CLI）、云同步、在线预设市场——均超出 T1doo 定位（§1.4 非目标兼容） | 用户 2026-07-07 提出三点优化；cc-switch 调研报告（§7.7/§7.8/§9 M7-M8/R12-R13/Q8） |
+| 2026-07-07 | **Q8 裁决通过 + hooks 退役（用户裁决，同日追加，plan 升 v1.6）**：① 全局切换转正——模型中心「一键切换」即写 `~/.claude/settings.json` env 键（cc-switch 同语义）；T1doo 管理键记账精确增删、冲突三选不静默覆盖、订阅态=移除管理键；按终端覆盖改走 `--settings` 内联 env（子进程 env vs settings env 优先级未见文档，M7 实测定案）；② **hooks 状态感知整体退役**（用户不喜欢该机制 + 经官方文档核实非必要）：替代=JSONL 事件驱动状态机（复用 F1 增量管道，尾部 tool_use 悬挂→waiting 启发式，permissionMode 抑制误报）+ OTEL spike（`claude_code.tool.blocked_on_user` 跨度存在但交互式 CLI 是否发出未证实）；HookServer/注册还原/设置开关/首启 hooks 步删除，升级自动清理既有 `/t1doo-hook` 注册；深合并/精确移除工具函数移交全局切换复用；③ 核实排除的替代路：`--settings` per-session hooks（文档不支持）、BEL 等待铃声（仍是 feature request #36850）；④ 「~/.claude 只读」唯一写入例外由 hooks 换为全局切换 env 键（§1.4/§11 修订）；⑤ 新增 M9（1 周），v1.1 周期 4→5 周（第 13-17 周）；⑥ 修复 §9 里程碑表 M7/M8 行与主表断开（多余空行） | 用户裁决 + claude-code-guide 官方文档核对（§7.7.5/§7.9/§9 M9/R2 关闭/R12/Q8） |
 | 2026-07-04 | **F4 文件中枢整体裁撤出 v1.0，M4 取消，总工期 14→12 周（用户裁决）**。① 处置：M4 当日已完整实现（订阅目录索引 worker+chokidar+FTS5 / 会话-文件联动 UI / Everything es.exe 桥 / 文件页与设置区块 / 15 项单测 / E2E 全绿），量化验收①-⑤全部达标——10 万文件全量索引 19-21s（<60s）、索引 DB 33MB（<50MB，FTS 只索引文件名不索引路径后从 43MB 降下来）、搜索 0.9-53ms（<100ms）、新建/改名 420ms 可搜（<2s）、主线程单批写库峰值 61ms；代码以单提交存档于 `feat/m4-files` 分支，**不合并、不删除**。② 裁撤动因：验收压测（10 万合成文件生成+索引，叠加 Everything 实时索引跟进）令开发机整机卡顿、风扇满载——"自建重索引"与轻量常驻工具定位的冲突有了体感证据；通用文件名搜索 Everything 本体已是天花板，自建订阅索引的边际价值不敌其资源/维护成本（§1.4"不与 Everything 竞争"这次彻底让位）。③ 保留：`session_files` 联动数据继续随 M1 会话同步零成本采集（解析 JSONL 顺带提取，不碰文件系统）；F4 移入 v1.1+ backlog，复活时从存档分支起步；主窗「文件」导航占位页 M6 打磨时降级处理。④ 开发机变更：Everything + es.exe 已 winget 装机，保留供日常使用（`winget uninstall voidtools.Everything voidtools.Everything.Cli` 可移除）。⑤ 压测坑档案（对 M5/M6 直接有用）：Win11 会把后台 shell 启动的进程树打入效率模式（EcoQoS），Electron 主进程的 setTimeout/setImmediate/worker 消息唤醒全部退化到秒级——主进程设计不可依赖定时器/消息往返做节流，压测须先把进程优先级拉回 Normal 再量测；Playwright `waitForFunction` 传 async 谓词会把 pending Promise 当 truthy 直接通过（假阳性），等待条件必须在 Node 侧显式轮询 | 开发机体感 + 定位复盘（§7.4 横幅 / §9 M4 行） |
 
 ---
@@ -828,4 +1031,4 @@ claude --version
 
 ---
 
-*Plan.md v1.4 · 起草于 2026-07-03，同日据 §14.1 Q1–Q7 裁决升级 v1.0；2026-07-04 经本机无头实测 + 官方文档核对补强为 v1.1；同日 M0-M3 全部交付后，F4 文件中枢裁撤出 v1 升级 v1.2（Claude Fable 5）；2026-07-05 M5 AI 能力交付 + F4 彻底废弃（不再实现）升级 v1.3；2026-07-07 M6 打磨发布代码交付（i18n/首启引导/自动更新/发布流水线/§10.3 审计全达标）升级 v1.4。剩余：干净虚拟机全流程手动验证（验收③）→ v1.0.0 tag + Release（验收④）。*
+*Plan.md v1.5 · 起草于 2026-07-03，同日据 §14.1 Q1–Q7 裁决升级 v1.0；2026-07-04 经本机无头实测 + 官方文档核对补强为 v1.1；同日 M0-M3 全部交付后，F4 文件中枢裁撤出 v1 升级 v1.2（Claude Fable 5）；2026-07-05 M5 AI 能力交付 + F4 彻底废弃（不再实现）升级 v1.3；2026-07-07 M6 打磨发布代码交付（i18n/首启引导/自动更新/发布流水线/§10.3 审计全达标）升级 v1.4；同日 v1.1 周期规划立项（F8 模型中心 + F9 用量中心 → M7/M8，参照 cc-switch 源码调研，§7.7/§7.8）升级 v1.5；同日 Q8 裁决通过（全局切换转正）+ hooks 退役决定（§7.9，新增 M9，v1.1 共 5 周）升级 v1.6。剩余：干净虚拟机全流程手动验证（v1.0 验收③）→ v1.0.0 tag + Release（验收④）→ M7 开工。*
