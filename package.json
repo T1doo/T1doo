@@ -1,6 +1,6 @@
 {
   "name": "t1doo",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "T1doo — Windows 桌面上的 AI 工作调度中心（Claude Code 编排与观测层）",
   "main": "./out/main/index.js",
   "author": "T1doo",

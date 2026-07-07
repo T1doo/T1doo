@@ -29,6 +29,25 @@
 
 首次启动有四步引导：语言选择 → 检测 Claude Code 并索引历史会话 → （可选）开启 hooks 实时状态感知 → 后端档案说明。
 
+## 数据存储位置
+
+应用数据集中在 `%APPDATA%\t1doo\`（安装版与 portable 版相同）：
+
+| 文件 | 内容 |
+|------|------|
+| `t1doo.db`（+ `-wal` / `-shm`） | 唯一 SQLite 库：会话索引（含 FTS 全文索引）、AI 对话历史、后台任务记录、启动器 frecency 与应用索引（含图标缓存） |
+| `t1doo.db.bak-v*` | 数据库迁移前的自动备份 |
+| `settings.json` | 应用设置（主题 / 语言 / 热键 / 首启标记等） |
+| `backend-profiles.json` | 后端档案（token 为 DPAPI 密文） |
+| `ai-api.json` | API 引擎配置（Key 仅存 DPAPI 密文 `apiKeyEnc`） |
+| `hooks.json` | hooks 开关状态与本机上报端口 / token |
+| `Cache` / `GPUCache` 等目录 | Electron/Chromium 运行时缓存，非业务数据 |
+
+会话原文（`~/.claude/projects/**/*.jsonl`）与提示词历史（`~/.claude/history.jsonl`）属于 Claude Code 本体，T1doo **只读取索引、从不修改**；唯一外部写入点是显式开启 hooks 时写 `~/.claude/settings.json`（写前备份 `settings.json.bak-t1doo`，关闭精确还原）。
+
+- **完全重置**：删除 `%APPDATA%\t1doo` 整个目录，下次启动重新索引并重走首启引导；`~/.claude` 不受影响。
+- **卸载行为**：NSIS 卸载**保留**该数据目录（重装续用历史）；如需彻底清除，卸载后手动删除即可。
+
 ## 安全与隐私
 
 - 渲染进程 `contextIsolation` + `sandbox`，IPC 白名单
