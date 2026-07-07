@@ -14,6 +14,17 @@ function flagValue(flag) {
 }
 
 const sessionId = flagValue('--session-id') || 'fake-session-0000'
+
+// M7 E2E：注入 T1DOO_FAKE_ECHO_ENV=1 时先回显 ANTHROPIC_* 环境变量
+// （断言按终端覆盖的 env 注入；空串=中和，也原样打印以便断言）
+if (process.env.T1DOO_FAKE_ECHO_ENV === '1') {
+  for (const key of Object.keys(process.env).sort()) {
+    if (key.startsWith('ANTHROPIC_')) {
+      process.stdout.write(`ENVDUMP ${key}=${process.env[key]}\n`)
+    }
+  }
+}
+
 out({ type: 'system', subtype: 'init', session_id: sessionId })
 
 if (flagValue('--input-format') === 'stream-json') {

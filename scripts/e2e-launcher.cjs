@@ -161,8 +161,11 @@ async function main() {
   console.log('✅ 「> 设置」执行 → 主窗跳转设置页 + 启动器隐藏')
 
   // ④ 设置页出现启动器区块（热键与应用索引状态）
+  // 注：exact 匹配会被"注册失败"内联提示打破（开发机常驻安装版 T1doo 占用 Alt+Space 时必现），
+  // 改为前缀匹配取首个——断言区块渲染本身，与热键注册结果解耦
   await mainPage
-    .getByText('全局热键', { exact: true })
+    .getByText('全局热键')
+    .first()
     .waitFor({ state: 'visible', timeout: 3000 })
   console.log('✅ 设置页启动器区块渲染')
 
