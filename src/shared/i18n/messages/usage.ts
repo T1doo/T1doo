@@ -31,6 +31,7 @@ export const usage = {
   'usage.source.workflow': { zh: '工作流', en: 'Workflows' },
   'usage.source.api-panel': { zh: '面板 · API', en: 'Panel · API' },
   'usage.source.cli-panel': { zh: '面板 · CLI', en: 'Panel · CLI' },
+  'usage.source.imported': { zh: '历史导入', en: 'Imported history' },
 
   // Hero 指标卡
   'usage.hero.totalTokens': { zh: '总 Token', en: 'Total tokens' },
@@ -95,6 +96,12 @@ export const usage = {
   'usage.cost.note': {
     zh: '按本地价目对 token 折算的名义值；订阅/自定义后端的真实账单可能完全不同',
     en: 'Nominal conversion via local pricing; real billing for subscription/custom backends may differ entirely'
+  },
+
+  // 数据起点说明
+  'usage.dataOrigin': {
+    zh: '数据自首次扫描起持续累积入库，之后不受 Claude Code 转录清理影响；早于首扫的历史仅能经一次性导入补齐（来源标记「历史导入」，日粒度、无项目维度）。',
+    en: 'Data accumulates permanently from the first scan onward, unaffected by Claude Code transcript cleanup; history older than the first scan can only be backfilled via one-time import (source "Imported history", day granularity, no project dimension).'
   },
 
   // Dashboard 精简卡片

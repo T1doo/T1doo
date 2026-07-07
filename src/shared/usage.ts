@@ -1,6 +1,7 @@
 /** F9 用量中心的共享视图模型（§7.8 / M8）：usage_log 聚合查询 + 价目表 */
 
-export type UsageSource = 'session' | 'subagent' | 'workflow' | 'api-panel' | 'cli-panel'
+/** 'imported' = 历史导入行（scripts/import-ccswitch-history.cjs 等一次性回填，日粒度） */
+export type UsageSource = 'session' | 'subagent' | 'workflow' | 'api-panel' | 'cli-panel' | 'imported'
 
 /** 六档时间预设（§7.8.4 筛选栏） */
 export type UsagePreset = 'today' | '7d' | '30d' | 'month' | 'year' | 'custom'

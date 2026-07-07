@@ -27,7 +27,14 @@ import { formatTokens } from '../lib/format'
 /** F9「用量」板块（§7.8.4）：筛选栏 + Hero 指标卡 + Recharts 趋势 + 分布区 + 价目表 */
 
 const PRESETS: UsagePreset[] = ['today', '7d', '30d', 'month', 'year', 'custom']
-const SOURCES: UsageSource[] = ['session', 'subagent', 'workflow', 'api-panel', 'cli-panel']
+const SOURCES: UsageSource[] = [
+  'session',
+  'subagent',
+  'workflow',
+  'api-panel',
+  'cli-panel',
+  'imported'
+]
 
 type Dim = 'input' | 'output' | 'cacheRead' | 'cacheCreation'
 const DIMS: { key: Dim; labelKey: I18nKey; color: string }[] = [
@@ -573,6 +580,10 @@ function UsagePage(): React.JSX.Element {
         </div>
         {pricingOpen && <PricingEditor />}
       </div>
+
+      <p className="mt-4 text-xs text-[var(--fg-muted)]" data-testid="usage-data-origin">
+        {t('usage.dataOrigin')}
+      </p>
     </div>
   )
 }
