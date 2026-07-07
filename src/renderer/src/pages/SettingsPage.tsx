@@ -3,10 +3,9 @@ import type { AppSettings, Language, ThemeSetting } from '@shared/types'
 import type { I18nKey } from '@shared/i18n'
 import { useI18n } from '../lib/i18n'
 import AboutSection from '../components/settings/AboutSection'
-import BackendProfilesSection from '../components/settings/BackendProfilesSection'
 import HooksSection from '../components/settings/HooksSection'
 import LauncherSection from '../components/settings/LauncherSection'
-import AiSection from '../components/settings/AiSection'
+import { useAppNav } from '../lib/app-nav'
 
 const THEME_OPTIONS: { value: ThemeSetting; labelKey: I18nKey }[] = [
   { value: 'dark', labelKey: 'settings.theme.dark' },
@@ -22,6 +21,7 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
 
 function SettingsPage(): React.JSX.Element {
   const { t } = useI18n()
+  const nav = useAppNav()
   const [settings, setSettings] = useState<AppSettings | null>(null)
 
   useEffect(() => {
@@ -135,10 +135,21 @@ function SettingsPage(): React.JSX.Element {
           </label>
         </section>
 
-        <AiSection />
+        {/* M7（§7.7.1）：AI 引擎与后端档案区块迁至「模型」板块，此处留跳转 */}
+        <section className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-5">
+          <span className="text-sm text-[var(--fg-muted)]">{t('models.movedFromSettings')}</span>
+          <button
+            type="button"
+            data-testid="settings-goto-models"
+            onClick={() => nav.goPage('models')}
+            className="rounded-md border border-[var(--accent)] px-3 py-1.5 text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)]"
+          >
+            {t('models.openModels')}
+          </button>
+        </section>
+
         <LauncherSection />
         <HooksSection />
-        <BackendProfilesSection />
         <AboutSection />
       </div>
     </div>

@@ -3,21 +3,8 @@ import { randomUUID } from 'crypto'
 import { safeStorage } from 'electron'
 import type { BackendProfileInput, BackendProfileView } from '../../../shared/backend'
 import type { ResolvedBackend } from './env'
+import { normalizeStoredProfile, sanitizeExtraEnv, type StoredProfile } from './stored'
 import { t } from '../i18n'
-
-/** 落盘形态：token 只存 safeStorage(DPAPI) 密文的 base64 */
-interface StoredProfile {
-  id: string
-  name: string
-  auth: 'subscription' | 'custom'
-  baseUrl: string | null
-  authTokenEnc: string | null
-  model: string | null
-  smallFastModel: string | null
-  extraEnv: Record<string, string>
-  clearInheritedEnv: boolean
-  isDefault: boolean
-}
 
 interface BackendStoreShape {
   profiles: StoredProfile[]
@@ -25,7 +12,7 @@ interface BackendStoreShape {
 
 const SUBSCRIPTION_PROFILE: StoredProfile = {
   id: 'builtin-subscription',
-  name: 'Max 订阅（登录态）',
+  name: 'Claude 订阅（登录态）',
   auth: 'subscription',
   baseUrl: null,
   authTokenEnc: null,
@@ -33,17 +20,14 @@ const SUBSCRIPTION_PROFILE: StoredProfile = {
   smallFastModel: null,
   extraEnv: {},
   clearInheritedEnv: false,
-  isDefault: true
-}
-
-function sanitizeExtraEnv(input: unknown): Record<string, string> {
-  if (!input || typeof input !== 'object') return {}
-  const out: Record<string, string> = {}
-  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-    const key = k.trim()
-    if (key && typeof v === 'string') out[key] = v
-  }
-  return out
+  isDefault: true,
+  defaultSonnetModel: null,
+  defaultOpusModel: null,
+  presetId: 'subscription',
+  category: 'official',
+  websiteUrl: null,
+  notes: null,
+  modelCache: []
 }
 
 export class BackendProfilesService {
@@ -73,17 +57,32 @@ export class BackendProfilesService {
       }
     }
 
+    // undefined = 保留原值；空串 = 清除（token 同语义，见上方 authTokenEnc）
+    const pick = (v: string | undefined, old: string | null | undefined): string | null =>
+      v === undefined ? (old ?? null) : v.trim() || null
+
     const next: StoredProfile = {
       id: existing?.id ?? randomUUID(),
       name: input.name.trim() || t('sys.unnamedProfile'),
       auth: input.auth === 'custom' ? 'custom' : 'subscription',
-      baseUrl: input.baseUrl?.trim() || null,
+      baseUrl: pick(input.baseUrl, existing?.baseUrl),
       authTokenEnc,
-      model: input.model?.trim() || null,
-      smallFastModel: input.smallFastModel?.trim() || null,
-      extraEnv: sanitizeExtraEnv(input.extraEnv),
-      clearInheritedEnv: input.clearInheritedEnv === true,
-      isDefault: input.isDefault === true || (existing?.isDefault ?? false)
+      model: pick(input.model, existing?.model),
+      smallFastModel: pick(input.smallFastModel, existing?.smallFastModel),
+      extraEnv:
+        input.extraEnv !== undefined
+          ? sanitizeExtraEnv(input.extraEnv)
+          : (existing?.extraEnv ?? {}),
+      clearInheritedEnv: input.clearInheritedEnv ?? existing?.clearInheritedEnv ?? false,
+      isDefault: input.isDefault === true || (existing?.isDefault ?? false),
+      defaultSonnetModel: pick(input.defaultSonnetModel, existing?.defaultSonnetModel),
+      defaultOpusModel: pick(input.defaultOpusModel, existing?.defaultOpusModel),
+      presetId: input.presetId ?? existing?.presetId ?? null,
+      category:
+        input.category ?? existing?.category ?? (input.auth === 'custom' ? 'custom' : 'official'),
+      websiteUrl: pick(input.websiteUrl, existing?.websiteUrl),
+      notes: pick(input.notes, existing?.notes),
+      modelCache: existing?.modelCache ?? []
     }
 
     const merged = existing
@@ -102,30 +101,40 @@ export class BackendProfilesService {
     return this.list()
   }
 
+  /** 全局切换成功后置"当前"标记（isDefault 即当前，任务/恢复默认沿用） */
+  setCurrent(id: string): BackendProfileView[] {
+    this.persist(withSoleDefault(this.all(), id))
+    return this.list()
+  }
+
+  /** 写入 /v1/models 拉取缓存（仅辅助展示） */
+  setModelCache(id: string, models: string[]): void {
+    this.persist(this.all().map((p) => (p.id === id ? { ...p, modelCache: models } : p)))
+  }
+
   getDefaultId(): string {
     const all = this.all()
     return (all.find((p) => p.isDefault) ?? all[0] ?? SUBSCRIPTION_PROFILE).id
   }
 
-  /** 解密档案供 spawn 注入；id 缺省/未知 → null（按订阅态处理） */
+  get(id: string): BackendProfileView | null {
+    const p = this.all().find((x) => x.id === id)
+    return p ? this.toView(p) : null
+  }
+
+  /** 解密档案供 spawn 注入；id 缺省/未知 → null（跟随全局，原样透传） */
   resolve(id: string | undefined | null): ResolvedBackend | null {
     if (!id) return null
     const p = this.all().find((x) => x.id === id)
     if (!p) return null
-    let token: string | null = null
-    if (p.authTokenEnc && safeStorage.isEncryptionAvailable()) {
-      try {
-        token = safeStorage.decryptString(Buffer.from(p.authTokenEnc, 'base64'))
-      } catch {
-        token = null // 密文损坏（如换机）：按无 token 处理，UI 会因连不上后端而暴露
-      }
-    }
     return {
       auth: p.auth,
       baseUrl: p.baseUrl,
-      token,
+      token: this.decryptToken(p),
       model: p.model,
       smallFastModel: p.smallFastModel,
+      defaultSonnetModel: p.defaultSonnetModel,
+      defaultOpusModel: p.defaultOpusModel,
       extraEnv: p.extraEnv,
       clearInheritedEnv: p.clearInheritedEnv
     }
@@ -136,19 +145,27 @@ export class BackendProfilesService {
     const out: string[] = []
     if (!safeStorage.isEncryptionAvailable()) return out
     for (const p of this.all()) {
-      if (!p.authTokenEnc) continue
-      try {
-        out.push(safeStorage.decryptString(Buffer.from(p.authTokenEnc, 'base64')))
-      } catch {
-        // 忽略坏密文
-      }
+      const token = this.decryptToken(p)
+      if (token) out.push(token)
     }
     return out
   }
 
+  private decryptToken(p: StoredProfile): string | null {
+    if (!p.authTokenEnc || !safeStorage.isEncryptionAvailable()) return null
+    try {
+      return safeStorage.decryptString(Buffer.from(p.authTokenEnc, 'base64'))
+    } catch {
+      return null // 密文损坏（如换机）：按无 token 处理，UI 会因连不上后端而暴露
+    }
+  }
+
   private all(): StoredProfile[] {
     const raw = this.store.get('profiles')
-    return Array.isArray(raw) && raw.length > 0 ? raw : [SUBSCRIPTION_PROFILE]
+    const normalized = Array.isArray(raw)
+      ? raw.map(normalizeStoredProfile).filter((p): p is StoredProfile => p !== null)
+      : []
+    return normalized.length > 0 ? normalized : [SUBSCRIPTION_PROFILE]
   }
 
   private persist(profiles: StoredProfile[]): void {
@@ -164,9 +181,16 @@ export class BackendProfilesService {
       hasToken: p.authTokenEnc !== null,
       model: p.model,
       smallFastModel: p.smallFastModel,
+      defaultSonnetModel: p.defaultSonnetModel,
+      defaultOpusModel: p.defaultOpusModel,
       extraEnv: p.extraEnv,
       clearInheritedEnv: p.clearInheritedEnv,
-      isDefault: p.isDefault
+      isDefault: p.isDefault,
+      presetId: p.presetId,
+      category: p.category,
+      websiteUrl: p.websiteUrl,
+      notes: p.notes,
+      modelCache: p.modelCache
     }
   }
 }

@@ -24,6 +24,7 @@ import { LauncherDao } from './db/launcher-dao'
 import { AiDao } from './db/ai-dao'
 import { ClaudeDataService, defaultProjectsDir } from './services/claude/sync'
 import { BackendProfilesService } from './services/backend/profiles'
+import { GlobalSwitchService } from './services/backend/global-switch'
 import { TerminalManager } from './services/terminal/manager'
 import { HooksService } from './services/hooks/server'
 import { ClaudeStatusTracker } from './services/hooks/status'
@@ -117,6 +118,12 @@ if (!gotLock) {
 
     // F2 终端层：后端档案 + PTY 托管 + hooks 状态感知
     const backends = new BackendProfilesService()
+    // F8 模型中心：全局切换（写 settings.json env 键，§7.7.5；E2E 经 T1DOO_CLAUDE_SETTINGS 隔离）
+    const globalSwitch = new GlobalSwitchService(
+      backends,
+      process.env.T1DOO_CLAUDE_SETTINGS ?? join(homedir(), '.claude', 'settings.json'),
+      (msg) => console.log('[backend-switch]', msg)
+    )
     terminals = new TerminalManager({
       backends,
       emit: (channel, ...args) => windows.broadcast(channel, ...args),
@@ -250,7 +257,7 @@ if (!gotLock) {
 
     registerIpcHandlers(settings, updater)
     registerSessionsIpc(dao, claudeData, terminals)
-    registerTerminalsIpc({ terminals, backends, hooks, dao })
+    registerTerminalsIpc({ terminals, backends, globalSwitch, hooks, dao })
     registerAiIpc({ chat, tasks: taskQueue, aiDao, apiConfig })
     registerLauncherIpc({
       service: launcher,

@@ -8,6 +8,7 @@ import { chat } from '../../src/shared/i18n/messages/chat'
 import { tasks } from '../../src/shared/i18n/messages/tasks'
 import { settings } from '../../src/shared/i18n/messages/settings'
 import { settingsSections } from '../../src/shared/i18n/messages/settings-sections'
+import { models } from '../../src/shared/i18n/messages/models'
 import { onboarding } from '../../src/shared/i18n/messages/onboarding'
 import { launcher } from '../../src/shared/i18n/messages/launcher'
 import { main } from '../../src/shared/i18n/messages/main'
@@ -42,6 +43,7 @@ describe('i18n 字典完整性', () => {
       tasks,
       settings,
       settingsSections,
+      models,
       onboarding,
       launcher,
       main,

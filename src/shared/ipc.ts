@@ -23,10 +23,24 @@ export const IPC = {
   TermList: 'term:list',
   TermAttach: 'term:attach',
   TermPickCwd: 'term:pick-cwd',
-  // 后端档案（§7.2.6）
+  // 后端档案（§7.2.6）/ 模型中心（§7.7）
   BackendList: 'backend:list',
   BackendSave: 'backend:save',
   BackendDelete: 'backend:delete',
+  /** 连通性测试（GET /v1/models，5s 超时，§7.7.4） */
+  BackendTest: 'backend:test',
+  /** 拉取网关模型列表 → modelCache（§7.7.4） */
+  BackendModels: 'backend:models',
+  /** 全局切换状态（授权/当前档案/管理键，§7.7.5） */
+  BackendGlobalState: 'backend:global-state',
+  /** 一键切换：写 settings.json env 键（含首次授权/冲突检测） */
+  BackendSwitch: 'backend:switch',
+  /** 一键还原：按记账移除全部管理键 */
+  BackendRestore: 'backend:restore',
+  /** 冲突三选之"导入为新档案"：把 live env 块导入为 custom 档案 */
+  BackendImportLive: 'backend:import-live',
+  /** API 直连通道拉取模型列表（用 ai 配置的 baseUrl+Key，§7.7.6） */
+  AiModels: 'ai:models',
   // hooks 状态感知（§7.2.4）
   HooksGetState: 'hooks:get-state',
   HooksSetEnabled: 'hooks:set-enabled',

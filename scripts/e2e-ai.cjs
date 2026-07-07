@@ -113,8 +113,8 @@ async function main() {
   console.log('✅ api 引擎无 Key → 明确提示：', errText.slice(0, 40))
   await page.screenshot({ path: join(SHOT_DIR, 'ai-2-nokey.png') })
 
-  // ---------- ⑤ API Key DPAPI 密文落盘 ----------
-  await page.locator('nav button:has-text("设置")').click()
+  // ---------- ⑤ API Key DPAPI 密文落盘（M7 起 API 配置迁至「模型」板块） ----------
+  await page.locator('nav button:has-text("模型")').click()
   await page.locator('[data-testid="ai-key-input"]').fill(TEST_KEY)
   await page.locator('[data-testid="ai-key-save"]').click()
   await page

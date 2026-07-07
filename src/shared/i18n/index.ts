@@ -6,6 +6,7 @@ import { chat } from './messages/chat'
 import { tasks } from './messages/tasks'
 import { settings } from './messages/settings'
 import { settingsSections } from './messages/settings-sections'
+import { models } from './messages/models'
 import { onboarding } from './messages/onboarding'
 import { launcher } from './messages/launcher'
 import { main } from './messages/main'
@@ -24,6 +25,7 @@ export const MESSAGES = {
   ...tasks,
   ...settings,
   ...settingsSections,
+  ...models,
   ...onboarding,
   ...launcher,
   ...main,
