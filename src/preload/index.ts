@@ -62,7 +62,13 @@ const api: T1dooApi = {
   backend: {
     list: () => ipcRenderer.invoke(IPC.BackendList),
     save: (input) => ipcRenderer.invoke(IPC.BackendSave, input),
-    delete: (id) => ipcRenderer.invoke(IPC.BackendDelete, id)
+    delete: (id) => ipcRenderer.invoke(IPC.BackendDelete, id),
+    test: (id) => ipcRenderer.invoke(IPC.BackendTest, id),
+    models: (id) => ipcRenderer.invoke(IPC.BackendModels, id),
+    globalState: () => ipcRenderer.invoke(IPC.BackendGlobalState),
+    switch: (id, opts) => ipcRenderer.invoke(IPC.BackendSwitch, id, opts),
+    restore: () => ipcRenderer.invoke(IPC.BackendRestore),
+    importLive: () => ipcRenderer.invoke(IPC.BackendImportLive)
   },
   hooks: {
     getState: () => ipcRenderer.invoke(IPC.HooksGetState),
@@ -90,6 +96,7 @@ const api: T1dooApi = {
     convSearch: (q) => ipcRenderer.invoke(IPC.AiConvSearch, q),
     configGet: () => ipcRenderer.invoke(IPC.AiConfigGet),
     configSet: (input) => ipcRenderer.invoke(IPC.AiConfigSet, input),
+    models: () => ipcRenderer.invoke(IPC.AiModels),
     onDelta: (cb) => subscribe<AiDeltaEvent>(IPC_EVENTS.AiDelta, cb)
   },
   tasks: {

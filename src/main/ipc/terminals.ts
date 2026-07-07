@@ -1,21 +1,45 @@
 import { dialog, ipcMain } from 'electron'
 import { IPC, IPC_SEND } from '../../shared/ipc'
 import { t } from '../services/i18n'
-import type { BackendProfileInput } from '../../shared/backend'
+import type {
+  BackendModelsResult,
+  BackendProfileInput,
+  BackendTestResult
+} from '../../shared/backend'
 import type { TerminalProfile } from '../../shared/terminals'
 import type { UsageStats } from '../../shared/api'
 import type { TerminalManager } from '../services/terminal/manager'
 import type { BackendProfilesService } from '../services/backend/profiles'
+import type { GlobalSwitchService } from '../services/backend/global-switch'
+import { probeModels, type ProbeResult } from '../services/backend/probe'
+import { extractProfileFromEnv } from '../services/backend/settings-env'
 import type { HooksService } from '../services/hooks/server'
 import type { SessionsDao } from '../db/dao'
+
+/** probe 失败 → 中文提示（describeApiError 同口径，§7.7.4） */
+function describeProbeFailure(r: Extract<ProbeResult, { ok: false }>): string {
+  switch (r.kind) {
+    case 'auth':
+      return t('models.test.auth')
+    case 'notfound':
+      return t('models.test.notFound')
+    case 'timeout':
+      return t('models.test.timeout')
+    case 'network':
+      return t('models.test.network')
+    default:
+      return t('models.test.http', { status: r.status ?? '?' })
+  }
+}
 
 export function registerTerminalsIpc(deps: {
   terminals: TerminalManager
   backends: BackendProfilesService
+  globalSwitch: GlobalSwitchService
   hooks: HooksService
   dao: SessionsDao
 }): void {
-  const { terminals, backends, hooks, dao } = deps
+  const { terminals, backends, globalSwitch, hooks, dao } = deps
 
   ipcMain.handle(IPC.TermCreate, (_e, profile: TerminalProfile) => terminals.create(profile))
   ipcMain.handle(IPC.TermClose, (_e, id: string) => terminals.close(id))
@@ -39,8 +63,75 @@ export function registerTerminalsIpc(deps: {
   })
 
   ipcMain.handle(IPC.BackendList, () => backends.list())
-  ipcMain.handle(IPC.BackendSave, (_e, input: BackendProfileInput) => backends.save(input))
-  ipcMain.handle(IPC.BackendDelete, (_e, id: string) => backends.delete(id))
+  ipcMain.handle(IPC.BackendSave, (_e, input: BackendProfileInput) => {
+    const list = backends.save(input)
+    // 编辑的是当前全局生效档案 → 自动重写 live，保持 settings.json 与档案同步（§7.7.5）
+    const appliedId = globalSwitch.getState().appliedProfileId
+    if (input.id && appliedId === input.id) {
+      globalSwitch.switchTo(input.id, { force: true })
+    }
+    return list
+  })
+  ipcMain.handle(IPC.BackendDelete, (_e, id: string) => {
+    // 当前全局生效档案禁止直接删除：live 里还挂着它的 env 键（§7.7.2）
+    if (globalSwitch.getState().appliedProfileId === id) {
+      throw new Error(t('models.deleteAppliedBlocked'))
+    }
+    return backends.delete(id)
+  })
+
+  // —— §7.7.4 连通性测试 / 模型列表 ——
+  ipcMain.handle(IPC.BackendTest, async (_e, id: string): Promise<BackendTestResult> => {
+    const view = backends.get(id)
+    if (!view) throw new Error(t('err.terminalNotFound', { id }))
+    if (view.auth === 'subscription') {
+      return { ok: false, latencyMs: null, modelCount: null, error: t('models.test.subscription') }
+    }
+    if (!view.baseUrl) {
+      return { ok: false, latencyMs: null, modelCount: null, error: t('models.test.noBaseUrl') }
+    }
+    const r = await probeModels(view.baseUrl, backends.resolve(id)?.token ?? null)
+    if (r.ok) {
+      return { ok: true, latencyMs: r.latencyMs, modelCount: r.models.length, error: null }
+    }
+    return { ok: false, latencyMs: null, modelCount: null, error: describeProbeFailure(r) }
+  })
+
+  ipcMain.handle(IPC.BackendModels, async (_e, id: string): Promise<BackendModelsResult> => {
+    const view = backends.get(id)
+    if (!view?.baseUrl) return { models: [], error: t('models.test.noBaseUrl') }
+    const r = await probeModels(view.baseUrl, backends.resolve(id)?.token ?? null)
+    if (r.ok && r.models.length > 0) {
+      backends.setModelCache(id, r.models)
+      return { models: r.models, error: null }
+    }
+    // 拉取失败 / 空列表：静默降级自由输入（R10 口径）
+    return { models: [], error: r.ok ? t('models.fetchModels.empty') : describeProbeFailure(r) }
+  })
+
+  // —— §7.7.5 全局切换 ——
+  ipcMain.handle(IPC.BackendGlobalState, () => globalSwitch.getState())
+  ipcMain.handle(
+    IPC.BackendSwitch,
+    (_e, id: string, opts?: { authorize?: boolean; force?: boolean }) =>
+      globalSwitch.switchTo(id, opts ?? {})
+  )
+  ipcMain.handle(IPC.BackendRestore, () => globalSwitch.restore())
+  ipcMain.handle(IPC.BackendImportLive, () => {
+    const extracted = extractProfileFromEnv(globalSwitch.readLiveSettings())
+    return backends.save({
+      name: `${t('models.importedName')} ${new Date().toLocaleString()}`,
+      auth: 'custom',
+      baseUrl: extracted.baseUrl ?? undefined,
+      token: extracted.token ?? undefined,
+      model: extracted.model ?? undefined,
+      smallFastModel: extracted.smallFastModel ?? undefined,
+      defaultSonnetModel: extracted.defaultSonnetModel ?? undefined,
+      defaultOpusModel: extracted.defaultOpusModel ?? undefined,
+      extraEnv: extracted.extraEnv,
+      category: 'custom'
+    })
+  })
 
   ipcMain.handle(IPC.HooksGetState, () => hooks.getState())
   ipcMain.handle(IPC.HooksSetEnabled, (_e, enabled: boolean) => hooks.setEnabled(enabled === true))

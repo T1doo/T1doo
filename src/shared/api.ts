@@ -8,7 +8,14 @@ import type {
   SessionSummary,
   SyncProgress
 } from './sessions'
-import type { BackendProfileInput, BackendProfileView } from './backend'
+import type {
+  BackendModelsResult,
+  BackendProfileInput,
+  BackendProfileView,
+  BackendTestResult,
+  GlobalSwitchState,
+  SwitchOutcome
+} from './backend'
 import type {
   LauncherExecuteResult,
   LauncherItem,
@@ -46,7 +53,7 @@ export interface UsageStats {
 }
 
 export interface NavigateRequest {
-  page: 'dashboard' | 'sessions' | 'terminals' | 'chat' | 'tasks' | 'settings'
+  page: 'dashboard' | 'sessions' | 'terminals' | 'chat' | 'tasks' | 'models' | 'settings'
   terminalId?: string
   sessionId?: string
   /** page='chat' 时聚焦的对话（启动器 @ 提问落点） */
@@ -112,6 +119,20 @@ export interface T1dooApi {
     list(): Promise<BackendProfileView[]>
     save(input: BackendProfileInput): Promise<BackendProfileView[]>
     delete(id: string): Promise<BackendProfileView[]>
+    /** 连通性测试（订阅态档案返回说明性提示，§7.7.4） */
+    test(id: string): Promise<BackendTestResult>
+    /** 拉取网关模型列表并写入档案 modelCache（§7.7.4） */
+    models(id: string): Promise<BackendModelsResult>
+    globalState(): Promise<GlobalSwitchState>
+    /**
+     * 一键切换（§7.7.5）：写 settings.json env 键并置 isDefault。
+     * authorize=true 表示用户已通过首次授权弹窗；force=true 表示冲突三选选了"覆盖"。
+     */
+    switch(id: string, opts?: { authorize?: boolean; force?: boolean }): Promise<SwitchOutcome>
+    /** 一键还原：按记账移除全部 T1doo 管理键 */
+    restore(): Promise<SwitchOutcome>
+    /** 把 live env 块导入为新 custom 档案，返回最新档案列表 */
+    importLive(): Promise<BackendProfileView[]>
   }
   hooks: {
     getState(): Promise<HooksState>
@@ -144,6 +165,8 @@ export interface T1dooApi {
     convSearch(q: string): Promise<ChatSearchHit[]>
     configGet(): Promise<AiApiConfig>
     configSet(input: AiApiConfigInput): Promise<AiApiConfig>
+    /** 用 API 配置的 baseUrl+Key 拉取网关模型列表（§7.7.6 组合框数据源） */
+    models(): Promise<BackendModelsResult>
     onDelta(cb: (e: AiDeltaEvent) => void): () => void
   }
   tasks: {
