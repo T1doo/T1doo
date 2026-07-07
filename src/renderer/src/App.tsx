@@ -7,6 +7,7 @@ import SettingsPage from './pages/SettingsPage'
 import TerminalsPage from './pages/TerminalsPage'
 import ChatPage from './pages/ChatPage'
 import TasksPage from './pages/TasksPage'
+import ModelsPage from './pages/ModelsPage'
 import { AppNavContext, type AppNav } from './lib/app-nav'
 import type { PageId } from './lib/app-nav'
 import { useI18n } from './lib/i18n'
@@ -19,6 +20,7 @@ const NAV = [
   { id: 'terminals', labelKey: 'nav.terminals' },
   { id: 'chat', labelKey: 'nav.chat' },
   { id: 'tasks', labelKey: 'nav.tasks' },
+  { id: 'models', labelKey: 'nav.models' },
   { id: 'settings', labelKey: 'nav.settings' }
 ] as const satisfies readonly { id: PageId; labelKey: I18nKey }[]
 
@@ -118,6 +120,7 @@ function App(): React.JSX.Element {
           {page === 'sessions' && <SessionsPage focusRequest={sessionFocus} />}
           {page === 'chat' && <ChatPage focusRequest={chatFocus} />}
           {page === 'tasks' && <TasksPage />}
+          {page === 'models' && <ModelsPage />}
           {page === 'settings' && <SettingsPage />}
           {/* 终端页常驻挂载：xterm 实例与滚动状态跨页面切换保留（§7.2.1 回放仅首挂载） */}
           <TerminalsPage visible={page === 'terminals'} focusRequest={focusRequest} />

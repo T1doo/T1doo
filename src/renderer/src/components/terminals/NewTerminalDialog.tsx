@@ -38,11 +38,8 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
       // 默认取最近活跃项目目录
       if (list[0]) setCwd((prev) => prev || list[0].path)
     })
-    void window.t1doo.backend.list().then((list) => {
-      setBackends(list)
-      const def = list.find((b) => b.isDefault) ?? list[0]
-      if (def) setBackendId(def.id)
-    })
+    // M7（§7.7.5）：默认「跟随全局」（backendId=''，不注入覆盖），显式选择才按档案 env 覆盖
+    void window.t1doo.backend.list().then(setBackends)
   }, [])
 
   const isBypass = permissionMode === 'bypassPermissions'
@@ -144,6 +141,14 @@ function NewTerminalDialog({ onClose, onCreate }: Props): React.JSX.Element {
                   onChange={(e) => setBackendId(e.target.value)}
                   className="w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 outline-none focus:border-[var(--accent)]"
                 >
+                  <option value="">
+                    {(() => {
+                      const current = backends.find((b) => b.isDefault)
+                      return current
+                        ? t('models.followGlobal', { name: current.name })
+                        : t('models.followGlobal.none')
+                    })()}
+                  </option>
                   {backends.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
