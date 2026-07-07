@@ -13,6 +13,11 @@
   --fg-muted: #6b6b76;
   --border: #e2e2e8;
   --accent: #d97706;
+  /* 用量图表四序列（§7.8.4：颜色走 CSS 变量适配暗/亮主题） */
+  --chart-input: #3b82f6;
+  --chart-output: #d97706;
+  --chart-cache-read: #059669;
+  --chart-cache-write: #7c3aed;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,6 +29,10 @@
     --fg-muted: #9a9aa5;
     --border: #2c2c33;
     --accent: #f59e0b;
+    --chart-input: #60a5fa;
+    --chart-output: #f59e0b;
+    --chart-cache-read: #34d399;
+    --chart-cache-write: #a78bfa;
   }
 }
 

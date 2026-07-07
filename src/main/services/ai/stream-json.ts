@@ -12,6 +12,9 @@ export interface StreamResult {
   totalCostUsd: number | null
   inputTokens: number | null
   outputTokens: number | null
+  /** 用量中心补记（§7.8.2 面板来源）：result.usage 的 cache 维度 */
+  cacheReadTokens: number | null
+  cacheCreationTokens: number | null
   numTurns: number | null
   durationMs: number | null
 }
@@ -21,6 +24,8 @@ export interface StreamJsonHandlers {
   onDelta?(text: string): void
   /** assistant 事件的完整消息文本（无 partial 事件时的回退来源） */
   onAssistantText?(text: string): void
+  /** assistant 事件携带的模型名（result 事件不带 model，用量中心据此溯源） */
+  onAssistantModel?(model: string): void
   /** system/init 事件（带 session_id） */
   onInit?(sessionId: string | null): void
   onResult?(r: StreamResult): void
@@ -81,6 +86,8 @@ export function handleStreamJsonLine(line: string, handlers: StreamJsonHandlers)
       return
     }
     case 'assistant': {
+      const model = (e.message as { model?: unknown } | null | undefined)?.model
+      if (typeof model === 'string' && model) handlers.onAssistantModel?.(model)
       const text = extractText(e.message)
       if (text) handlers.onAssistantText?.(text)
       return
@@ -95,6 +102,8 @@ export function handleStreamJsonLine(line: string, handlers: StreamJsonHandlers)
         totalCostUsd: num(e.total_cost_usd),
         inputTokens: num(usage.input_tokens),
         outputTokens: num(usage.output_tokens),
+        cacheReadTokens: num(usage.cache_read_input_tokens),
+        cacheCreationTokens: num(usage.cache_creation_input_tokens),
         numTurns: num(e.num_turns),
         durationMs: num(e.duration_ms)
       })

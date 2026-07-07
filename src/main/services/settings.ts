@@ -18,6 +18,9 @@ function sanitize(patch: Partial<AppSettings>): Partial<AppSettings> {
   if (typeof patch.onboardingDone === 'boolean') out.onboardingDone = patch.onboardingDone
   if (typeof patch.closeToTray === 'boolean') out.closeToTray = patch.closeToTray
   if (typeof patch.notifyWaiting === 'boolean') out.notifyWaiting = patch.notifyWaiting
+  // 修复：notifyTaskDone 此前漏出白名单，设置页开关无法持久化
+  if (typeof patch.notifyTaskDone === 'boolean') out.notifyTaskDone = patch.notifyTaskDone
+  if (typeof patch.usageShowCost === 'boolean') out.usageShowCost = patch.usageShowCost
   if (typeof patch.launcherHotkey === 'string' && patch.launcherHotkey.trim()) {
     out.launcherHotkey = patch.launcherHotkey.trim()
   }

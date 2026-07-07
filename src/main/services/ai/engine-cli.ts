@@ -23,6 +23,15 @@ export interface CliTurnOutcome {
   text: string
   inputTokens: number | null
   outputTokens: number | null
+  /** 用量中心补记（§7.8.2 面板来源）：--no-session-persistence 不落 JSONL，从 result 事件补记 */
+  cacheReadTokens: number | null
+  cacheCreationTokens: number | null
+  /** stream-json init/result 的 session_id（usage_log 主键 `cli:<sessionId>:<turn>`） */
+  sessionId: string | null
+  /** 本回合 assistant 事件携带的模型名（result 事件不带 model） */
+  model: string | null
+  /** result 事件 subtype（'success' 等），充当面板行的 stop_reason */
+  subtype: string | null
 }
 
 /** 长连进程启动参数（纯函数，vitest 直测） */
@@ -58,6 +67,7 @@ interface PendingTurn {
   buffer: string
   sawDelta: boolean
   stopped: boolean
+  model: string | null
 }
 
 interface ConvProc {
@@ -94,7 +104,15 @@ export class CliChatEngine {
         reject(new Error(t('err.turnInProgress')))
         return
       }
-      proc.pending = { resolve, reject, onDelta, buffer: '', sawDelta: false, stopped: false }
+      proc.pending = {
+        resolve,
+        reject,
+        onDelta,
+        buffer: '',
+        sawDelta: false,
+        stopped: false,
+        model: null
+      }
       proc.child.stdin.write(buildUserMessageLine(text), (err) => {
         if (err && proc.pending) {
           const pending = proc.pending
@@ -195,6 +213,9 @@ export class CliChatEngine {
           pending.onDelta(text)
         }
       },
+      onAssistantModel: (model) => {
+        pending.model = model
+      },
       onResult: (r) => this.finishTurn(proc, r)
     })
   }
@@ -213,7 +234,12 @@ export class CliChatEngine {
       // partial 缺失且 assistant 事件也缺失时，用 result 文本兜底
       text: pending.buffer || r.resultText || '',
       inputTokens: r.inputTokens,
-      outputTokens: r.outputTokens
+      outputTokens: r.outputTokens,
+      cacheReadTokens: r.cacheReadTokens,
+      cacheCreationTokens: r.cacheCreationTokens,
+      sessionId: r.sessionId,
+      model: pending.model,
+      subtype: r.subtype
     })
   }
 
