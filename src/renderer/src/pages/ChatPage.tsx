@@ -44,7 +44,8 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
   const [input, setInput] = useState('')
   const [searchQ, setSearchQ] = useState('')
   const [engine, setEngine] = useState<AiEngine>('cli')
-  const [apiModel, setApiModel] = useState<string>(API_MODELS[0].id)
+  // 空串 = 跟随「模型」板块 API 直连配置的默认模型（conversations.ts 侧回落）
+  const [apiModel, setApiModel] = useState<string>('')
   const [backendProfileId, setBackendProfileId] = useState<string>('')
   const [streams, setStreams] = useState<Record<string, StreamState | undefined>>({})
   const [errors, setErrors] = useState<Record<string, string | undefined>>({})
@@ -81,6 +82,14 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
   const configQuery = useQuery({
     queryKey: ['ai-config'],
     queryFn: () => window.t1doo.ai.configGet()
+  })
+  // 网关模型列表（api 引擎选中时懒拉取；失败静默降级自由输入，不打扰）
+  const gatewayModelsQuery = useQuery({
+    queryKey: ['ai-gateway-models'],
+    queryFn: () => window.t1doo.ai.models(),
+    enabled: engine === 'api',
+    retry: false,
+    staleTime: 300_000
   })
 
   // 流式事件订阅：delta 整包替换、done/error 收尾并刷新查询
@@ -122,7 +131,7 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
         convId: selected,
         text,
         engine,
-        model: engine === 'api' ? apiModel : undefined,
+        model: engine === 'api' ? apiModel.trim() || undefined : undefined,
         backendProfileId: engine === 'cli' && backendProfileId ? backendProfileId : undefined
       })
       // 占位 stream，让 UI 立即进入"回答中"态（首个 delta 到达前）；
@@ -360,17 +369,33 @@ function ChatPage({ focusRequest }: ChatPageProps): React.JSX.Element {
                   </select>
                 ) : (
                   <>
-                    <select
+                    {/* 组合框：预设 + 网关拉取 + 自由输入；留空 = 跟随模型板块配置（§7.7.6） */}
+                    <input
+                      data-testid="chat-api-model"
                       value={apiModel}
                       onChange={(e) => setApiModel(e.target.value)}
-                      className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
-                    >
+                      list="t1doo-chat-api-models"
+                      placeholder={t('chat.apiModelDefault', {
+                        model: configQuery.data?.model ?? API_MODELS[0].id
+                      })}
+                      className="w-64 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1"
+                    />
+                    <datalist id="t1doo-chat-api-models">
+                      {configQuery.data?.model &&
+                        !API_MODELS.some((m) => m.id === configQuery.data.model) && (
+                          <option value={configQuery.data.model} />
+                        )}
                       {API_MODELS.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.label}
                         </option>
                       ))}
-                    </select>
+                      {(gatewayModelsQuery.data?.models ?? [])
+                        .filter((id) => !API_MODELS.some((m) => m.id === id))
+                        .map((id) => (
+                          <option key={id} value={id} />
+                        ))}
+                    </datalist>
                     {configQuery.data && !configQuery.data.hasKey && (
                       <span className="text-xs text-amber-400">{t('chat.noApiKey')}</span>
                     )}

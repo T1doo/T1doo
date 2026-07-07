@@ -29,9 +29,13 @@ export const chat = {
   'chat.engineCli': { zh: 'CLI 引擎', en: 'CLI engine' },
   'chat.engineApi': { zh: 'API 引擎', en: 'API engine' },
   'chat.defaultBackend': { zh: '默认后端档案', en: 'Default backend profile' },
+  'chat.apiModelDefault': {
+    zh: '默认：{model}（可输任意模型 id）',
+    en: 'Default: {model} (type any model id)'
+  },
   'chat.noApiKey': {
-    zh: '未配置 API Key（设置 → AI 对话）',
-    en: 'API Key not configured (Settings → AI Chat)'
+    zh: '未配置 API Key（模型 → API 直连）',
+    en: 'API Key not configured (Models → API connection)'
   },
   'chat.inputPlaceholder': {
     zh: '输入问题，Enter 发送，Shift+Enter 换行',
