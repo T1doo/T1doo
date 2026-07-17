@@ -2,7 +2,7 @@
 
 export type TerminalKind = 'claude' | 'shell'
 
-/** claude 会话终端的实时状态（hooks 或降级路径推断）；shell 终端无状态 */
+/** claude 会话终端的实时状态（JSONL 事件驱动推断，§7.9.2）；shell 终端无状态 */
 export type ClaudeStatus = 'working' | 'waiting' | 'idle'
 
 /** 2.1.196 `--help` 实测全集（§7.2.2） */
@@ -35,11 +35,13 @@ export interface TerminalInfo {
   title: string
   pid: number
   createdAt: number
-  /** 绑定的 Claude sessionId：新建=--session-id 预生成；恢复=--resume 已知；shell=hooks SessionStart 校正 */
+  /** 绑定的 Claude sessionId：新建=--session-id 预生成；恢复=--resume 已知；shell=JSONL 首见按 cwd 关联（§7.9.4） */
   sessionId: string | null
   backendProfileId: string | null
   /** claude 终端的实时状态；shell 终端恒为 null */
   status: ClaudeStatus | null
+  /** 当前 status 是否为确定判定；false=启发式推断（waiting 用空心角标，§7.9.2） */
+  statusCertain: boolean
   /** 进程已退出时的退出码（标签保留供回看，需手动关闭） */
   exit: { code: number } | null
 }
@@ -50,21 +52,16 @@ export interface TerminalAttachResult {
   buffer: string
 }
 
-/** 会话级状态事件（hooks 上报后广播；Dashboard 与终端页共用） */
+/** 会话级状态事件（JSONL 状态机推断后广播；Dashboard 与终端页共用） */
 export interface ClaudeStatusEvent {
   sessionId: string
   status: ClaudeStatus | 'closed'
   cwd: string | null
   terminalId: string | null
+  /**
+   * waiting 的判定强度（§7.9.2 如实展示局限）：
+   * true=确定（AskUserQuestion/ExitPlanMode 语义即等人）；false=启发式推断 → UI 空心角标。
+   */
+  certain: boolean
   ts: number
-}
-
-/** hooks 状态感知的运行时状态（设置页展示） */
-export interface HooksState {
-  enabled: boolean
-  running: boolean
-  port: number | null
-  /** 注册进 ~/.claude/settings.json 是否成功 */
-  registered: boolean
-  error: string | null
 }

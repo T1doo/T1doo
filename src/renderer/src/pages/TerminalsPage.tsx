@@ -10,13 +10,17 @@ interface Props {
   focusRequest: { terminalId: string; seq: number } | null
 }
 
-function statusDotClass(status: ClaudeStatus | null, exited: boolean): string {
+/**
+ * 状态角标（§7.9.2）：waiting 为推断值时用**空心**（描边）圆点，确定判定才填实——
+ * 让「等确认」与「工具只是慢」的不可区分性在 UI 上如实可见，不冒充确定信号。
+ */
+function statusDotClass(status: ClaudeStatus | null, exited: boolean, certain: boolean): string {
   if (exited) return 'bg-red-500'
   switch (status) {
     case 'working':
       return 'bg-sky-500 t1-pulse'
     case 'waiting':
-      return 'bg-amber-500 t1-blink'
+      return certain ? 'bg-amber-500 t1-blink' : 'border-2 border-amber-500 bg-transparent t1-blink'
     case 'idle':
       return 'bg-emerald-600'
     default:
@@ -168,7 +172,7 @@ function TerminalsPage({ visible, focusRequest }: Props): React.JSX.Element {
                 }`}
               >
                 <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass(term.status, term.exit !== null)}`}
+                  className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass(term.status, term.exit !== null, term.statusCertain)}`}
                 />
                 <span className="truncate">{term.title}</span>
                 {id === rightId && <span className="shrink-0 text-xs opacity-60">▐</span>}

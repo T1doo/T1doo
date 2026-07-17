@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ClaudeProbeResult, Language } from '@shared/types'
 import type { SyncProgress } from '@shared/sessions'
-import type { HooksState } from '@shared/terminals'
 import { useI18n } from '../../lib/i18n'
 
 const TOTAL_STEPS = 4
@@ -17,7 +16,7 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
   { value: 'en', label: 'English' }
 ]
 
-/** 首启引导四步向导（M6 §8）：语言 → 检测+索引 → hooks → 后端档案/完成 */
+/** 首启引导四步向导（M6 §8）：语言 → 检测+索引 → 状态感知说明 → 后端档案/完成 */
 function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
   const { t, lang } = useI18n()
   const [step, setStep] = useState(0)
@@ -26,11 +25,6 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
   const [probe, setProbe] = useState<ClaudeProbeResult | null>(null)
   const [probing, setProbing] = useState(true)
   const [progress, setProgress] = useState<SyncProgress | null>(null)
-
-  // ③ hooks
-  const [hooksState, setHooksState] = useState<HooksState | null>(null)
-  const [hooksError, setHooksError] = useState<string | null>(null)
-  const [hooksBusy, setHooksBusy] = useState(false)
 
   // 初始态即 probing=true：effect 内不同步 setState（react-hooks 规则）
   const runProbe = useCallback(() => {
@@ -50,21 +44,6 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
     const unsubscribe = window.t1doo.sessions.onProgress(setProgress)
     return unsubscribe
   }, [runProbe])
-
-  const enableHooks = (): void => {
-    setHooksBusy(true)
-    setHooksError(null)
-    window.t1doo.hooks
-      .setEnabled(true)
-      .then((s) => {
-        setHooksState(s)
-        if (s.error) setHooksError(s.error)
-      })
-      .catch((err: Error) => setHooksError(err.message))
-      .finally(() => setHooksBusy(false))
-  }
-
-  const hooksOk = hooksState?.enabled && hooksState.registered && !hooksError
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)]/95">
@@ -114,7 +93,9 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
           {step === 1 && (
             <>
               <h1 className="mb-3 text-2xl font-semibold">{t('onboarding.detect.title')}</h1>
-              {probing && <p className="text-[var(--fg-muted)]">{t('onboarding.detect.probing')}</p>}
+              {probing && (
+                <p className="text-[var(--fg-muted)]">{t('onboarding.detect.probing')}</p>
+              )}
               {!probing && probe?.found && (
                 <p className="mb-4 text-[var(--ok,#4ade80)]">
                   ✓ {t('onboarding.detect.found', { version: probe.version ?? 'claude' })}
@@ -153,36 +134,26 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
                 </div>
               )}
               {probe?.found && progress?.phase === 'done' && (
-                <p className="text-sm text-[var(--fg-muted)]">✓ {t('onboarding.detect.indexDone')}</p>
+                <p className="text-sm text-[var(--fg-muted)]">
+                  ✓ {t('onboarding.detect.indexDone')}
+                </p>
               )}
             </>
           )}
 
+          {/* ③ 状态感知：v1.1 起纯说明，无授权动作、不写任何配置（§7.9.4） */}
           {step === 2 && (
             <>
-              <h1 className="mb-3 text-2xl font-semibold">{t('onboarding.hooks.title')}</h1>
-              <p className="mb-5 text-sm leading-relaxed text-[var(--fg-muted)]">
-                {t('onboarding.hooks.desc')}
+              <h1 className="mb-3 text-2xl font-semibold">{t('onboarding.status.title')}</h1>
+              <p className="mb-4 text-sm leading-relaxed text-[var(--fg-muted)]">
+                {t('onboarding.status.desc')}
               </p>
-              {!hooksOk && (
-                <button
-                  type="button"
-                  onClick={enableHooks}
-                  disabled={hooksBusy}
-                  className="rounded-md border border-[var(--accent)] px-4 py-2 text-[var(--accent)] transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
-                >
-                  {t('onboarding.hooks.enable')}
-                </button>
-              )}
-              {hooksOk && (
-                <p className="text-[var(--ok,#4ade80)]">✓ {t('onboarding.hooks.enabled')}</p>
-              )}
-              {hooksError && (
-                <p className="mt-3 text-sm text-[var(--warn,#facc15)]">
-                  {t('onboarding.hooks.failed', { error: hooksError })}
-                </p>
-              )}
-              <p className="mt-4 text-xs text-[var(--fg-muted)]">{t('onboarding.hooks.later')}</p>
+              <p className="mb-4 text-sm text-[var(--ok,#4ade80)]">
+                ✓ {t('onboarding.status.readonly')}
+              </p>
+              <p className="text-xs leading-relaxed text-[var(--fg-muted)]">
+                {t('onboarding.status.limit')}
+              </p>
             </>
           )}
 
@@ -221,9 +192,7 @@ function OnboardingWizard({ hotkey, onDone }: Props): React.JSX.Element {
             )}
             <button
               type="button"
-              onClick={() =>
-                step === TOTAL_STEPS - 1 ? onDone(false) : setStep((s) => s + 1)
-              }
+              onClick={() => (step === TOTAL_STEPS - 1 ? onDone(false) : setStep((s) => s + 1))}
               className="rounded-md bg-[var(--accent)] px-5 py-2 font-medium text-[var(--bg)] transition-opacity hover:opacity-90"
             >
               {step === TOTAL_STEPS - 1 ? t('onboarding.finish') : t('onboarding.next')}

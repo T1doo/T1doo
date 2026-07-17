@@ -71,10 +71,10 @@ const api: T1dooApi = {
     restore: () => ipcRenderer.invoke(IPC.BackendRestore),
     importLive: () => ipcRenderer.invoke(IPC.BackendImportLive)
   },
-  hooks: {
-    getState: () => ipcRenderer.invoke(IPC.HooksGetState),
-    setEnabled: (enabled) => ipcRenderer.invoke(IPC.HooksSetEnabled, enabled),
-    onClaudeStatus: (cb) => subscribe<ClaudeStatusEvent>(IPC_EVENTS.ClaudeStatus, cb)
+  status: {
+    onClaudeStatus: (cb) => subscribe<ClaudeStatusEvent>(IPC_EVENTS.ClaudeStatus, cb),
+    retireNotice: () => ipcRenderer.invoke(IPC.StatusRetireNotice),
+    dismissRetireNotice: () => ipcRenderer.invoke(IPC.StatusDismissRetireNotice)
   },
   usage: {
     query: (req: UsageQueryRequest) => ipcRenderer.invoke(IPC.UsageQuery, req),

@@ -41,9 +41,11 @@ export const IPC = {
   BackendImportLive: 'backend:import-live',
   /** API 直连通道拉取模型列表（用 ai 配置的 baseUrl+Key，§7.7.6） */
   AiModels: 'ai:models',
-  // hooks 状态感知（§7.2.4）
-  HooksGetState: 'hooks:get-state',
-  HooksSetEnabled: 'hooks:set-enabled',
+  // F2 状态感知 v2（§7.9）：hooks 已退役，仅剩退役清理的一次性告知
+  /** 是否要展示「已移除 v1.0 hooks 注册」的一次性提示 */
+  StatusRetireNotice: 'status:retire-notice',
+  /** 用户确认后消抹提示，不再展示 */
+  StatusDismissRetireNotice: 'status:dismiss-retire-notice',
   // F9 用量中心（§7.8）：Dashboard 卡片与板块共用（stats:usage 已随 M8 退役）
   /** 聚合查询单入口（kind: summary/trend/byModel/byProject/bySource/facets） */
   UsageQuery: 'usage:query',

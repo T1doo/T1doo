@@ -1,7 +1,6 @@
 import Store from 'electron-store'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
-import { dirname, join } from 'path'
+import { join } from 'path'
 import type { GlobalSwitchState, SwitchConflict, SwitchOutcome } from '../../../shared/backend'
 import {
   applyManagedEnv,
@@ -10,6 +9,7 @@ import {
   removeManagedEnv
 } from './settings-env'
 import type { BackendProfilesService } from './profiles'
+import { readClaudeSettings, writeClaudeSettings } from '../claude/settings-io'
 import { t } from '../i18n'
 
 interface GlobalSwitchStore {
@@ -113,27 +113,14 @@ export class GlobalSwitchService {
     return drifted.length > 0 ? { drifted } : null
   }
 
-  // ---------- 文件读写（备份 + 原子写） ----------
+  // ---------- 文件读写（备份 + 原子写，与 hooks 退役清理共用同一底座） ----------
 
   private readSettings(): Record<string, unknown> {
-    if (!existsSync(this.settingsPath)) return {}
-    const raw = readFileSync(this.settingsPath, 'utf8')
-    if (!raw.trim()) return {}
-    const parsed: unknown = JSON.parse(raw) // 解析失败向上抛：绝不覆盖读不懂的用户配置
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error(t('err.hooksSettingsMalformed'))
-    }
-    return parsed as Record<string, unknown>
+    return readClaudeSettings(this.settingsPath)
   }
 
   private writeSettings(settings: Record<string, unknown>): void {
-    mkdirSync(dirname(this.settingsPath), { recursive: true })
-    if (existsSync(this.settingsPath)) {
-      copyFileSync(this.settingsPath, `${this.settingsPath}.bak-t1doo`)
-    }
-    const tmp = `${this.settingsPath}.tmp-t1doo`
-    writeFileSync(tmp, JSON.stringify(settings, null, 2) + '\n', 'utf8')
-    renameSync(tmp, this.settingsPath)
+    writeClaudeSettings(this.settingsPath, settings)
   }
 
   /** 冲突三选之"导入为新档案"要读 live env 块 */

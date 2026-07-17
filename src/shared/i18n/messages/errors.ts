@@ -141,14 +141,10 @@ export const errors = {
     en: 'Task interrupted because the app exited'
   },
 
-  // ---------- hooks（services/hooks/server.ts） ----------
-  'err.hooksSettingsMalformed': {
+  // ---------- ~/.claude/settings.json 读写（services/claude/settings-io.ts） ----------
+  'err.claudeSettingsMalformed': {
     zh: 'settings.json 结构异常（非对象），拒绝写入',
     en: 'settings.json is malformed (not an object); refusing to write'
-  },
-  'err.hooksNotInitialized': {
-    zh: 'hooks 端口/token 未初始化',
-    en: 'hooks port/token not initialized'
   },
 
   // ---------- 终端（services/terminal/*） ----------

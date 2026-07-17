@@ -4,9 +4,19 @@ import { stat } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { discoverSessionFiles, SESSION_FILE_RE } from './discovery'
 import type { WorkerRequest, WorkerResponse } from './scan.worker'
+import type { StatusSignals } from './parser'
 import type { SessionsDao, SyncCursor } from '../../db/dao'
 import type { SessionDetail, SyncProgress } from '../../../shared/sessions'
 import { t } from '../i18n'
+
+/** F2 状态感知 v2 的行级出口载荷（§7.9.2） */
+export interface StatusSignalEvent {
+  sessionId: string
+  signals: StatusSignals
+  cwd: string | null
+  /** 游标重建/截断 → 消费方须先清空该会话的悬挂集 */
+  replace: boolean
+}
 
 export interface ClaudeDataServiceOptions {
   /** ~/.claude/projects */
@@ -16,6 +26,11 @@ export interface ClaudeDataServiceOptions {
   workerPath: string
   emitProgress: (p: SyncProgress) => void
   emitSessionsUpdated: (sessionIds: string[]) => void
+  /**
+   * 状态机出口（§7.9.2）：解析块内的行级观测。与 DB 无关、不落库——
+   * 冷启动追平历史文件时同样会发，由状态机按行内时间戳判活后自行丢弃。
+   */
+  emitStatusSignals?: (e: StatusSignalEvent) => void
   log: (msg: string) => void
 }
 
@@ -130,6 +145,12 @@ export class ClaudeDataService {
         jsonlPath: filePath,
         jsonlOffset: resp.newOffset,
         jsonlSize: resp.size
+      })
+      this.opts.emitStatusSignals?.({
+        sessionId,
+        signals: resp.result.status,
+        cwd: resp.result.cwd,
+        replace: mode === 'replace'
       })
       if (resp.result.badLines > 0) {
         this.opts.log(`会话 ${sessionId}：跳过 ${resp.result.badLines} 行无法解析的数据`)
