@@ -121,3 +121,66 @@ describe('toFtsQuery / CJK 一元切分', () => {
     expect(desegmentCjk('plain english')).toBe('plain english')
   })
 })
+
+describe('状态机信号提取（§7.9.2，F1 与状态机的接缝）', () => {
+  it('真实形状夹具：模式/悬挂/闭合/末行角色全部按主链提取', () => {
+    const r = parseLines(fixtureLines('status-signals.jsonl'))
+    const s = r.status
+
+    // permission-mode 行（会话中途 shift+tab 改模式）是权威来源，后写覆盖 user 行上的值
+    expect(s.permissionMode).toBe('bypassPermissions')
+
+    // 主链的 tool_use 全部记录；侧链里的 Grep 不得混入
+    expect(s.toolUseOpened).toEqual([
+      { id: 'toolu_edit_01', name: 'Edit' },
+      { id: 'toolu_agent_01', name: 'Agent' }
+    ])
+    expect(s.toolResultClosed).toEqual(['toolu_edit_01'])
+
+    // 有真实用户提示（第一行 user 不载 tool_result）
+    expect(s.userPrompt).toBe(true)
+
+    // 末行角色只认主链：文件末尾的侧链 assistant 与 permission-mode 行都不改它。
+    // 主链最后一条是 Agent 的 assistant 行
+    expect(s.lastRole).toBe('assistant')
+    expect(s.lastTs).toBe(Date.parse('2026-07-17T10:00:11.000Z'))
+  })
+
+  it('tool_result 回填的 user 行不算「真实用户提示」', () => {
+    const onlyToolResult = [
+      JSON.stringify({
+        type: 'user',
+        uuid: 'u1',
+        sessionId: 's',
+        timestamp: '2026-07-17T10:00:00.000Z',
+        isSidechain: false,
+        message: {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'x', content: 'ok' }]
+        }
+      })
+    ]
+    const s = parseLines(onlyToolResult).status
+    expect(s.userPrompt).toBe(false)
+    expect(s.lastRole).toBe('user')
+    expect(s.toolResultClosed).toEqual(['x'])
+  })
+
+  it('侧链会话（子代理内部往返）完全不产生主状态信号', () => {
+    const r = parseLines(fixtureLines('titles-and-sidechain.jsonl'))
+    // 该夹具的侧链行不应贡献 tool_use；主链行仍照常
+    expect(r.status.toolUseOpened.every((t) => t.name !== '(sidechain-only)')).toBe(true)
+  })
+
+  it('permission-mode 行不计入 badLines / skipped（已从未知类型转为白名单）', () => {
+    const r = parseLines([
+      JSON.stringify({ type: 'permission-mode', permissionMode: 'plan', sessionId: 's' })
+    ])
+    expect(r.badLines).toBe(0)
+    expect(r.skipped['permission-mode']).toBeUndefined()
+    expect(r.status.permissionMode).toBe('plan')
+    // 无对话行 → 不推进判活信息
+    expect(r.status.lastRole).toBeNull()
+    expect(r.status.lastTs).toBeNull()
+  })
+})

@@ -3,7 +3,6 @@ import type { AppSettings, Language, ThemeSetting } from '@shared/types'
 import type { I18nKey } from '@shared/i18n'
 import { useI18n } from '../lib/i18n'
 import AboutSection from '../components/settings/AboutSection'
-import HooksSection from '../components/settings/HooksSection'
 import LauncherSection from '../components/settings/LauncherSection'
 import { useAppNav } from '../lib/app-nav'
 
@@ -149,7 +148,8 @@ function SettingsPage(): React.JSX.Element {
         </section>
 
         <LauncherSection />
-        <HooksSection />
+        {/* 「实时状态感知（hooks）」区块已随 M9 退役：状态感知改为零配置的 JSONL 推断，
+            无开关可调；等待通知的开关仍在上方「通知」区（§7.9.4） */}
         <AboutSection />
       </div>
     </div>

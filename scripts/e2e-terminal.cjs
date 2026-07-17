@@ -1,6 +1,7 @@
-/* M2 E2E：内置终端 + hooks 状态感知全链路（隔离环境，不碰真实配置、不 spawn claude）
- * 覆盖：shell 终端 echo 回显 → hooks 开启注册 → SessionStart 启发式绑定 →
- *       UserPromptSubmit/Stop 状态流转 → hooks 关闭精确还原 → 退出无孤儿进程
+/* M2 E2E：内置终端全链路（隔离环境，不碰真实配置、不 spawn claude）
+ * 覆盖：shell 终端 echo 回显 → 同开 6 终端并发 → 后端档案 token 密文落盘 → 退出无孤儿进程
+ * 状态感知已随 M9 从 hooks 改为 JSONL 事件驱动 → 状态流转断言移至 scripts/e2e-status.cjs；
+ * 这里只留一条把关：启动时不得碰用户的 settings.json（没有我们的注册就分毫不动）。
  * 用法：npm run build 后 node scripts/e2e-terminal.cjs [截图输出目录]
  */
 const { _electron } = require('playwright-core')
@@ -8,28 +9,9 @@ const { execFileSync } = require('child_process')
 const { join } = require('path')
 const { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } = require('fs')
 const { tmpdir } = require('os')
-const http = require('http')
 
 const SHOT_DIR = process.argv[2] || join(__dirname, '..', 'out')
 const MARKER = `T1DOO_ECHO_${Date.now()}`
-
-function post(port, token, payload) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify(payload)
-    const req = http.request(
-      {
-        host: '127.0.0.1',
-        port,
-        path: '/t1doo-hook',
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Length': Buffer.byteLength(body) }
-      },
-      (res) => resolve(res.statusCode)
-    )
-    req.on('error', reject)
-    req.end(body)
-  })
-}
 
 function pidAlive(pid) {
   const out = execFileSync('tasklist', ['/FI', `PID eq ${pid}`], { encoding: 'utf8' })
@@ -44,13 +26,14 @@ async function main() {
   mkdirSync(userData, { recursive: true })
   // 跳过首启引导（M6）：否则向导覆盖层挡住页面交互
   writeFileSync(join(userData, 'settings.json'), JSON.stringify({ onboardingDone: true }))
-  // 预置"用户既有配置"验证深合并保留 + 精确还原
+  // 预置"用户既有配置"（含用户自有 hook，但无我们的注册）：启动后必须分毫不动
   const claudeSettingsPath = join(tmp, 'claude-settings.json')
   const originalSettings = {
     permissions: { allow: ['Bash(git *)'] },
     hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo user-own' }] }] }
   }
-  writeFileSync(claudeSettingsPath, JSON.stringify(originalSettings, null, 2))
+  const originalRaw = JSON.stringify(originalSettings, null, 2)
+  writeFileSync(claudeSettingsPath, originalRaw)
 
   // T1DOO_EXE 指向打包产物（如 dist/win-unpacked/T1doo.exe）时验证打包版；缺省跑开发构建
   const app = await _electron.launch({
@@ -124,76 +107,12 @@ async function main() {
   await win.waitForTimeout(500)
   console.log('①b 同开 6 终端并发输入输出 ✅')
 
-  // ---------- 2. hooks 开启：注册 + 备份 ----------
-  await win.getByRole('button', { name: '设置' }).click()
-  await win.getByRole('button', { name: '开启', exact: true }).click()
-  await win.waitForTimeout(800)
-  const registered = JSON.parse(readFileSync(claudeSettingsPath, 'utf8'))
-  const events = [
-    'UserPromptSubmit',
-    'PermissionRequest',
-    'Notification',
-    'Stop',
-    'SessionStart',
-    'SessionEnd'
-  ]
-  for (const ev of events) {
-    const groups = registered.hooks?.[ev] ?? []
-    const ours = groups
-      .flatMap((g) => g.hooks ?? [])
-      .filter((h) => String(h.command).includes('/t1doo-hook'))
-    if (ours.length !== 1) fail(`hooks 注册缺失/重复：${ev} 命中 ${ours.length}`)
-  }
-  if (
-    !registered.hooks.Stop.some((g) => (g.hooks ?? []).some((h) => h.command === 'echo user-own'))
-  )
-    fail('用户自有 Stop hook 被破坏')
-  if (JSON.stringify(registered.permissions) !== JSON.stringify(originalSettings.permissions))
-    fail('permissions 键被破坏')
-  if (!existsSync(`${claudeSettingsPath}.bak-t1doo`)) fail('备份文件未生成')
-  const cmd = registered.hooks.Stop.flatMap((g) => g.hooks ?? []).find((h) =>
-    String(h.command).includes('/t1doo-hook')
-  ).command
-  const port = Number(cmd.match(/127\.0\.0\.1:(\d+)\/t1doo-hook/)[1])
-  const token = cmd.match(/Bearer ([0-9a-f]+)/)[1]
-  console.log(`② hooks 注册六事件 + 既有配置保留 + 备份 ✅（port=${port}）`)
-
-  // ---------- 3. 状态链路：SessionStart 绑定 → working → waiting → idle ----------
-  const fakeSession = '55555555-5555-4555-8555-555555555555'
-  if ((await post(port, 'wrong-token', { hook_event_name: 'Stop' })) !== 401)
-    fail('错误 token 未被拒绝')
-  await post(port, token, {
-    hook_event_name: 'SessionStart',
-    session_id: fakeSession,
-    cwd: shellTerm.cwd
-  })
-  await win.waitForTimeout(400)
-  let t = (await win.evaluate(() => window.t1doo.term.list()))[0]
-  if (t.sessionId !== fakeSession) fail(`SessionStart 未绑定（sessionId=${t.sessionId}）`)
-
-  await post(port, token, {
-    hook_event_name: 'UserPromptSubmit',
-    session_id: fakeSession,
-    cwd: shellTerm.cwd
-  })
-  await win.waitForTimeout(400)
-  t = (await win.evaluate(() => window.t1doo.term.list()))[0]
-  if (t.status !== 'working') fail(`UserPromptSubmit 后状态=${t.status}，期望 working`)
-
-  await post(port, token, { hook_event_name: 'Stop', session_id: fakeSession, cwd: shellTerm.cwd })
-  await win.waitForTimeout(400)
-  t = (await win.evaluate(() => window.t1doo.term.list()))[0]
-  if (t.status !== 'idle') fail(`Stop 后状态=${t.status}，期望 idle`)
-  console.log('③ hooks 状态链路（401 拒绝/绑定校正/working/idle）✅')
-  await win.screenshot({ path: join(SHOT_DIR, 'm2-2-hooks.png') })
-
-  // ---------- 4. hooks 关闭：精确还原 ----------
-  await win.getByRole('button', { name: '关闭并还原' }).click()
-  await win.waitForTimeout(600)
-  const restored = JSON.parse(readFileSync(claudeSettingsPath, 'utf8'))
-  if (JSON.stringify(restored) !== JSON.stringify(originalSettings))
-    fail(`还原不精确：\n${JSON.stringify(restored, null, 2)}`)
-  console.log('④ hooks 关闭 settings.json 精确还原 ✅')
+  // ---------- 2. ~/.claude/settings.json 只读把关（M9：hooks 已退役，无注册动作） ----------
+  // 没有我们的注册标记 → 退役清理必须什么都不做，连备份都不该生成
+  if (readFileSync(claudeSettingsPath, 'utf8') !== originalRaw)
+    fail('启动过程动了用户的 settings.json')
+  if (existsSync(`${claudeSettingsPath}.bak-t1doo`)) fail('无需清理却生成了备份')
+  console.log('② 用户 settings.json 分毫未动、无多余备份 ✅（状态流转断言见 e2e-status.cjs）')
 
   // ---------- 4b. 后端档案：token 磁盘为 DPAPI 密文（验收⑥存储侧） ----------
   const SECRET = 'sk-e2e-plaintext-secret-0987654321'

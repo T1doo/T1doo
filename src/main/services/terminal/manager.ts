@@ -87,6 +87,7 @@ export class TerminalManager {
       sessionId,
       backendProfileId,
       status: profile.kind === 'claude' ? 'idle' : null,
+      statusCertain: false,
       exit: null
     }
     const record: TermRecord = {
@@ -149,7 +150,11 @@ export class TerminalManager {
     this.opts.emit(this.opts.events.closed, id)
   }
 
-  /** hooks SessionStart 权威校正：把 sessionId 绑到 cwd 匹配且尚未绑定的终端（§7.2.3） */
+  /**
+   * 把 sessionId 绑到 cwd 匹配且尚未绑定的终端（§7.2.3）。
+   * v1.0 由 hooks 的 SessionStart 权威校正驱动；hooks 退役后改由状态机在 JSONL
+   * 首见该会话时调用（§7.9.4）——覆盖「在 shell 终端里手敲 claude」这一路。
+   */
   adoptSession(sessionId: string, cwd: string | null): TerminalInfo | null {
     const bound = this.findBySession(sessionId)
     if (bound) return bound.info
@@ -157,7 +162,7 @@ export class TerminalManager {
     const norm = normalizePath(cwd)
     for (const record of this.records.values()) {
       if (record.pty && !record.info.sessionId && normalizePath(record.info.cwd) === norm) {
-        record.info = { ...record.info, sessionId, status: 'idle' }
+        record.info = { ...record.info, sessionId, status: 'idle', statusCertain: false }
         this.opts.emit(this.opts.events.updated, record.info)
         return record.info
       }
@@ -165,11 +170,15 @@ export class TerminalManager {
     return null
   }
 
-  setStatusBySession(sessionId: string, status: ClaudeStatus): TerminalInfo | null {
+  setStatusBySession(
+    sessionId: string,
+    status: ClaudeStatus,
+    certain = false
+  ): TerminalInfo | null {
     const record = this.findBySession(sessionId)
     if (!record) return null
-    if (record.info.status !== status) {
-      record.info = { ...record.info, status }
+    if (record.info.status !== status || record.info.statusCertain !== certain) {
+      record.info = { ...record.info, status, statusCertain: certain }
       this.opts.emit(this.opts.events.updated, record.info)
     }
     return record.info

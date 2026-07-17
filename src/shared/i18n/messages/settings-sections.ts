@@ -43,25 +43,6 @@ export const settingsSections = {
   'settingsLauncher.scanning': { zh: '扫描中…', en: 'Scanning…' },
   'settingsLauncher.rescan': { zh: '重新扫描', en: 'Rescan' },
 
-  // —— 实时状态感知（hooks） ——
-  'settingsHooks.title': {
-    zh: '实时状态感知（hooks）',
-    en: 'Real-time status awareness (hooks)'
-  },
-  // 描述被 <code>~/.claude/settings.json</code> 截成前后两段
-  'settingsHooks.desc.before': { zh: '开启后向 ', en: 'When enabled, registers 6 hooks in ' },
-  'settingsHooks.desc.after': {
-    zh: ' 注册 6 个 hook（回环地址上报，Bearer 校验），终端标签与 Dashboard 可实时显示 working / waiting / idle 并在等待输入时通知。 写入前自动备份（.bak-t1doo），关闭时精确移除、既有配置原样保留。 不开启则回退为文件轮询推断（延迟较高、无法识别等待状态）。',
-    en: ' (loopback reporting, Bearer-verified), so terminal tabs and the Dashboard show working / waiting / idle in real time and notify you when a session waits for input. A backup (.bak-t1doo) is made before writing; disabling removes only these hooks and keeps existing config intact. When off, falls back to file-polling inference (higher latency, cannot detect the waiting state).'
-  },
-  'settingsHooks.status.running': { zh: '● 运行中', en: '● Running' },
-  'settingsHooks.status.notRunning': { zh: '● 未运行', en: '● Not running' },
-  'settingsHooks.status.registered': { zh: '已注册', en: 'Registered' },
-  'settingsHooks.status.notRegistered': { zh: '未注册', en: 'Not registered' },
-  'settingsHooks.status.off': { zh: '未开启', en: 'Off' },
-  'settingsHooks.enable': { zh: '开启', en: 'Enable' },
-  'settingsHooks.disable': { zh: '关闭并还原', en: 'Disable & restore' },
-
   // —— 后端档案 ——
   'settingsBackend.title': { zh: '后端档案', en: 'Backend profiles' },
   'settingsBackend.subtitle': {

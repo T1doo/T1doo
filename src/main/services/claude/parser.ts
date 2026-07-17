@@ -29,6 +29,8 @@ const ChatLineSchema = z.looseObject({
   version: z.string().nullish(),
   slug: z.string().nullish(),
   sessionId: z.string().nullish(),
+  /** 状态机用（§7.9.2）：本机实测 90.2% 的真实用户提示行携带，首个提示即可得知 */
+  permissionMode: z.string().nullish(),
   message: z
     .looseObject({
       role: z.string().nullish(),
@@ -41,6 +43,8 @@ const ChatLineSchema = z.looseObject({
 
 const AiTitleSchema = z.looseObject({ aiTitle: z.string() })
 const CustomTitleSchema = z.looseObject({ customTitle: z.string() })
+/** `{"type":"permission-mode","permissionMode":"auto","sessionId":"..."}` —— 会话中途改模式时写入 */
+const PermissionModeSchema = z.looseObject({ permissionMode: z.string() })
 
 // ---------- 输出模型 ----------
 
@@ -66,6 +70,28 @@ export interface ParsedFileOp {
   ts: number | null
 }
 
+/**
+ * 状态机信号（§7.9.2）：本次解析块内与 working/waiting/idle 相关的观测。
+ * 只取主链——`isSidechain` 行（子代理内部往返）不参与主状态。
+ */
+export interface StatusSignals {
+  /** 本块内最后出现的 permissionMode（permission-mode 行或 user 行顶层字段，后写覆盖先写） */
+  permissionMode: string | null
+  /** 本块内新开的 tool_use，按出现顺序 */
+  toolUseOpened: { id: string; name: string }[]
+  /** 本块内被 tool_result 关闭的 tool_use_id */
+  toolResultClosed: string[]
+  /** 本块内是否出现真实用户提示（非 tool_result 载荷、非侧链、非 meta）→ working 起点 */
+  userPrompt: boolean
+  /**
+   * 本块内**最后一条**主链行的角色。回合收尾的 assistant 纯文本行不产生其他任何信号，
+   * 唯有靠它才能把「回合结束」与「CC 正在调 API」区分开 —— 缺了它 idle 只能等兜底超时。
+   */
+  lastRole: 'user' | 'assistant' | null
+  /** 本块内最后一条主链行的时间戳（判活用：陈旧文件不进状态机） */
+  lastTs: number | null
+}
+
 export interface ParsedFileResult {
   sessionId: string | null
   cwd: string | null
@@ -85,6 +111,7 @@ export interface ParsedFileResult {
   files: ParsedFileOp[]
   badLines: number
   skipped: Record<string, number>
+  status: StatusSignals
 }
 
 const FILE_TOOL_OPS: Record<string, FileOp> = {
@@ -113,15 +140,17 @@ interface RawBlock {
   is_error?: unknown
 }
 
-/** message.content（string 或块数组）→ 纯文本（供 FTS）+ tool_use 块 */
+/** message.content（string 或块数组）→ 纯文本（供 FTS）+ tool_use 块 + tool_result 关联 id */
 function extractContent(content: unknown): {
   text: string
   toolUses: { id: string; name: string; input: unknown }[]
+  toolResultIds: string[]
 } {
-  if (typeof content === 'string') return { text: content, toolUses: [] }
-  if (!Array.isArray(content)) return { text: '', toolUses: [] }
+  if (typeof content === 'string') return { text: content, toolUses: [], toolResultIds: [] }
+  if (!Array.isArray(content)) return { text: '', toolUses: [], toolResultIds: [] }
   const texts: string[] = []
   const toolUses: { id: string; name: string; input: unknown }[] = []
+  const toolResultIds: string[] = []
   for (const raw of content as RawBlock[]) {
     if (!raw || typeof raw !== 'object') continue
     if (raw.type === 'text' && typeof raw.text === 'string') texts.push(raw.text)
@@ -131,9 +160,11 @@ function extractContent(content: unknown): {
         name: raw.name,
         input: raw.input
       })
+    } else if (raw.type === 'tool_result' && typeof raw.tool_use_id === 'string') {
+      toolResultIds.push(raw.tool_use_id)
     }
   }
-  return { text: texts.join('\n'), toolUses }
+  return { text: texts.join('\n'), toolUses, toolResultIds }
 }
 
 /** 首条用户消息 → 标题候选：去标签、并行空白、截断 */
@@ -166,7 +197,15 @@ export class SessionFileParser {
     messages: [],
     files: [],
     badLines: 0,
-    skipped: {}
+    skipped: {},
+    status: {
+      permissionMode: null,
+      toolUseOpened: [],
+      toolResultClosed: [],
+      userPrompt: false,
+      lastRole: null,
+      lastTs: null
+    }
   }
 
   feedLine(line: string): void {
@@ -207,6 +246,13 @@ export class SessionFileParser {
         else this.r.badLines++
         return
       }
+      case 'permission-mode': {
+        // 中途改模式（shift+tab）的权威来源；本身不含 timestamp，不影响判活
+        const parsed = PermissionModeSchema.safeParse(obj)
+        if (parsed.success) this.r.status.permissionMode = parsed.data.permissionMode
+        else this.r.badLines++
+        return
+      }
       default:
         // 白名单外：静默跳过，仅计数（system/attachment/queue-operation/mode/…）
         this.r.skipped[type] = (this.r.skipped[type] ?? 0) + 1
@@ -222,7 +268,19 @@ export class SessionFileParser {
     }
     const d = parsed.data
     const ts = parseTs(d.timestamp)
-    const { text, toolUses } = extractContent(d.message?.content)
+    const { text, toolUses, toolResultIds } = extractContent(d.message?.content)
+
+    // 状态机信号（§7.9.2）：只取主链，侧链＝子代理内部往返，不参与主状态
+    if (d.isSidechain !== true) {
+      const s = this.r.status
+      if (d.permissionMode) s.permissionMode = d.permissionMode
+      if (ts !== null && (s.lastTs === null || ts > s.lastTs)) s.lastTs = ts
+      s.lastRole = d.type // 按行序覆盖 → 收尾即本块最后一条主链行的角色
+      for (const tu of toolUses) if (tu.id) s.toolUseOpened.push({ id: tu.id, name: tu.name })
+      s.toolResultClosed.push(...toolResultIds)
+      // 真实用户提示＝user 行且不载 tool_result（tool_result 回填也是 user 行，须区分）
+      if (d.type === 'user' && d.isMeta !== true && toolResultIds.length === 0) s.userPrompt = true
+    }
 
     // 会话级元数据：cwd/slug 取首个出现（权威来源），version/gitBranch/model 取最新
     if (this.r.sessionId === null && d.sessionId) this.r.sessionId = d.sessionId

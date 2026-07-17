@@ -29,8 +29,9 @@ import { UsageService } from './services/usage/usage-service'
 import { BackendProfilesService } from './services/backend/profiles'
 import { GlobalSwitchService } from './services/backend/global-switch'
 import { TerminalManager } from './services/terminal/manager'
-import { HooksService } from './services/hooks/server'
-import { ClaudeStatusTracker } from './services/hooks/status'
+import { ClaudeStatusTracker } from './services/status/tracker'
+import { RetireNoticeStore } from './services/status/retire-notice'
+import { retireHooks } from './services/claude/hooks-retire'
 import { LauncherService } from './services/launcher/service'
 import { RecentPromptsReader } from './services/launcher/prompts'
 import { ChatService } from './services/ai/conversations'
@@ -56,8 +57,10 @@ if (!gotLock) {
   let claudeData: ClaudeDataService | null = null
   let usage: UsageService | null = null
   let terminals: TerminalManager | null = null
-  let hooks: HooksService | null = null
   let statusTracker: ClaudeStatusTracker | null = null
+  /** §7.9.4：本次启动是否真的清理掉了 v1.0 的 hooks 注册（用于一次性告知） */
+  let hooksRetired = false
+  const retireNotice = new RetireNoticeStore()
   let appScanTimer: NodeJS.Timeout | null = null
   let chat: ChatService | null = null
   let taskQueue: TaskQueue | null = null
@@ -75,7 +78,6 @@ if (!gotLock) {
     terminals?.disposeAll() // 杀全部 pty 进程树，不留孤儿（验收⑤）
     chat?.disposeAll() // cli 引擎长连进程
     taskQueue?.disposeAll() // 运行中无头任务
-    hooks?.dispose()
     statusTracker?.dispose()
     shortcut.dispose()
     if (appScanTimer) clearInterval(appScanTimer)
@@ -122,11 +124,10 @@ if (!gotLock) {
       dao,
       workerPath: scanWorkerPath,
       emitProgress: (p) => windows.broadcast(IPC_EVENTS.IndexProgress, p),
-      emitSessionsUpdated: (ids) => {
-        windows.broadcast(IPC_EVENTS.SessionsUpdated, ids)
-        // 降级状态路径：hooks 未运行时用 JSONL 写入近似 working/idle（§7.2.4）
-        if (hooks && !hooks.getState().running) statusTracker?.touchFromSync(ids)
-      },
+      emitSessionsUpdated: (ids) => windows.broadcast(IPC_EVENTS.SessionsUpdated, ids),
+      // F2 状态感知 v2（§7.9.2）：hooks 退役后这是状态的**唯一**来源
+      emitStatusSignals: (e) =>
+        statusTracker?.feed(e.sessionId, e.signals, { cwd: e.cwd, replace: e.replace }),
       log: (msg) => console.log('[claude-sync]', msg)
     })
 
@@ -140,7 +141,7 @@ if (!gotLock) {
       log: (msg) => console.log('[usage]', msg)
     })
 
-    // F2 终端层：后端档案 + PTY 托管 + hooks 状态感知
+    // F2 终端层：后端档案 + PTY 托管 + JSONL 事件驱动状态感知（§7.9）
     const backends = new BackendProfilesService()
     // F8 模型中心：全局切换（写 settings.json env 键，§7.7.5；E2E 经 T1DOO_CLAUDE_SETTINGS 隔离）
     const globalSwitch = new GlobalSwitchService(
@@ -172,11 +173,17 @@ if (!gotLock) {
         })
       }
     })
-    hooks = new HooksService(
-      (payload) => statusTracker?.handleHook(payload),
-      process.env.T1DOO_CLAUDE_SETTINGS ?? join(homedir(), '.claude', 'settings.json'),
-      (msg) => console.log('[hooks]', msg)
-    )
+    // §7.9.4 升级清理：摘掉 v1.0 留在 settings.json 里的 hook 注册（其余键分毫不动）。
+    // 解析失败即抛 → 只记日志不打断启动：读不懂的用户配置宁可不动。
+    try {
+      hooksRetired = retireHooks(
+        process.env.T1DOO_CLAUDE_SETTINGS ?? join(homedir(), '.claude', 'settings.json'),
+        (msg) => console.log('[hooks-retire]', msg)
+      )
+    } catch (err) {
+      console.log('[hooks-retire] 跳过清理：', String(err))
+    }
+    if (hooksRetired) retireNotice.markPending()
 
     // F5 AI 能力：对话双引擎 + 任务队列（§7.5）
     const aiDao = new AiDao(db)
@@ -283,7 +290,12 @@ if (!gotLock) {
     registerIpcHandlers(settings, updater)
     registerSessionsIpc(dao, claudeData, terminals)
     registerUsageIpc(usageDao, usage)
-    registerTerminalsIpc({ terminals, backends, globalSwitch, hooks })
+    registerTerminalsIpc({
+      terminals,
+      backends,
+      globalSwitch,
+      retireNotice: { get: () => retireNotice.get(), dismiss: () => retireNotice.dismiss() }
+    })
     registerAiIpc({ chat, tasks: taskQueue, aiDao, apiConfig })
     registerLauncherIpc({
       service: launcher,
@@ -313,10 +325,10 @@ if (!gotLock) {
     windows.createMainWindow(!startHidden)
     launcherWin.create() // 预创建隐藏窗，热键唤起零加载开销
 
-    // 窗口先出，重同步与 hooks 恢复随后跑（不阻塞首屏）；用量首扫与 F1 各持 worker 并行
+    // 窗口先出，重同步随后跑（不阻塞首屏）；用量首扫与 F1 各持 worker 并行。
+    // 状态感知无需单独启动：F1 的增量管道即其数据源（§7.9.2）
     void claudeData.start().catch((err) => console.error('[claude-sync] 启动失败', err))
     void usage.start().catch((err) => console.error('[usage] 启动失败', err))
-    void hooks.init().catch((err) => console.error('[hooks] 启动恢复失败', err))
 
     // 应用索引：启动 5s 后补扫（首启/超 24h），此后每 24h 刷新（§7.3 刷新策略）
     const SCAN_INTERVAL = 24 * 3_600_000

@@ -14,15 +14,15 @@ import type { GlobalSwitchService } from '../services/backend/global-switch'
 import { probeModels } from '../services/backend/probe'
 import { describeProbeFailure } from '../services/backend/probe-messages'
 import { extractProfileFromEnv } from '../services/backend/settings-env'
-import type { HooksService } from '../services/hooks/server'
 
 export function registerTerminalsIpc(deps: {
   terminals: TerminalManager
   backends: BackendProfilesService
   globalSwitch: GlobalSwitchService
-  hooks: HooksService
+  /** hooks 退役清理是否实际发生过（§7.9.4：清理完成后 UI 一次性告知） */
+  retireNotice: { get: () => boolean; dismiss: () => void }
 }): void {
-  const { terminals, backends, globalSwitch, hooks } = deps
+  const { terminals, backends, globalSwitch, retireNotice } = deps
 
   ipcMain.handle(IPC.TermCreate, (_e, profile: TerminalProfile) => terminals.create(profile))
   ipcMain.handle(IPC.TermClose, (_e, id: string) => terminals.close(id))
@@ -124,7 +124,11 @@ export function registerTerminalsIpc(deps: {
     })
   })
 
-  ipcMain.handle(IPC.HooksGetState, () => hooks.getState())
-  ipcMain.handle(IPC.HooksSetEnabled, (_e, enabled: boolean) => hooks.setEnabled(enabled === true))
+  // —— §7.9.4 hooks 退役 ——
+  ipcMain.handle(IPC.StatusRetireNotice, () => retireNotice.get())
+  ipcMain.handle(IPC.StatusDismissRetireNotice, () => {
+    retireNotice.dismiss()
+  })
   // stats:usage 已退役（M8）：Dashboard 用量卡片改由 usage:query（usage_log 全量口径）出数
+  // hooks:get-state / hooks:set-enabled 已退役（M9）：状态感知无开关、无配置（§7.9.2）
 }

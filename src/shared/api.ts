@@ -25,7 +25,6 @@ import type {
 } from './launcher'
 import type {
   ClaudeStatusEvent,
-  HooksState,
   TerminalAttachResult,
   TerminalInfo,
   TerminalProfile
@@ -138,10 +137,12 @@ export interface T1dooApi {
     /** 把 live env 块导入为新 custom 档案，返回最新档案列表 */
     importLive(): Promise<BackendProfileView[]>
   }
-  hooks: {
-    getState(): Promise<HooksState>
-    setEnabled(enabled: boolean): Promise<HooksState>
+  /** F2 状态感知 v2（§7.9）：JSONL 事件驱动推断，无开关无配置 */
+  status: {
     onClaudeStatus(cb: (e: ClaudeStatusEvent) => void): () => void
+    /** v1.0 hooks 注册是否已被本次升级清理掉（true=展示一次性告知） */
+    retireNotice(): Promise<boolean>
+    dismissRetireNotice(): Promise<void>
   }
   /** F9 用量中心（§7.8）：聚合查询单入口（kind 参数）+ 价目表 */
   usage: {

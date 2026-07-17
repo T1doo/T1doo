@@ -33,16 +33,20 @@ export const onboarding = {
     en: 'Session history indexed'
   },
 
-  // ③ hooks 状态感知
-  'onboarding.hooks.title': { zh: '实时状态感知（可选）', en: 'Real-time status awareness (optional)' },
-  'onboarding.hooks.desc': {
-    zh: '开启后向 ~/.claude/settings.json 注册 6 个 hook（仅上报到本机回环地址，Bearer 校验），终端与 Dashboard 可实时显示 working / waiting / idle，并在会话等待输入时通知你。写入前自动备份（.bak-t1doo），关闭时精确移除、既有配置原样保留。不开启则回退为文件轮询推断（延迟较高，无法识别等待状态）。',
-    en: 'When enabled, registers 6 hooks in ~/.claude/settings.json (loopback-only reporting with Bearer verification) so terminals and the Dashboard show working / waiting / idle in real time and notify you when a session waits for input. A backup (.bak-t1doo) is made before writing; disabling removes only these hooks and keeps your existing config intact. If left off, T1doo falls back to file-polling inference (higher latency, cannot detect the waiting state).'
+  // ③ 状态感知说明（§7.9.4：纯说明，无授权动作——不写任何配置）
+  'onboarding.status.title': { zh: '实时状态感知', en: 'Real-time status awareness' },
+  'onboarding.status.desc': {
+    zh: 'T1doo 读取 Claude Code 自己写的会话记录来推断状态，终端标签与 Dashboard 会实时显示 工作中 / 等待确认 / 空闲，并在会话等待你输入时通知你。无需任何配置与授权，内置终端和你在外部终端里手开的会话一视同仁。',
+    en: 'T1doo infers status from the session transcripts Claude Code already writes, so terminal tabs and the Dashboard show working / waiting / idle in real time and notify you when a session waits for your input. No setup or authorization needed — sessions you start in T1doo and in your own terminal are treated alike.'
   },
-  'onboarding.hooks.enable': { zh: '开启状态感知', en: 'Enable status awareness' },
-  'onboarding.hooks.enabled': { zh: '已开启', en: 'Enabled' },
-  'onboarding.hooks.failed': { zh: '开启失败：{error}', en: 'Failed to enable: {error}' },
-  'onboarding.hooks.later': { zh: '稍后可在设置页随时开启或关闭。', en: 'You can toggle this anytime in Settings.' },
+  'onboarding.status.readonly': {
+    zh: '全程只读，不修改 Claude Code 的任何配置。',
+    en: 'Read-only throughout — none of your Claude Code config is touched.'
+  },
+  'onboarding.status.limit': {
+    zh: '「等待确认」为推断值（空心角标标注）：无法区分「在等你点同意」与「工具本身跑得慢」，因此仅对确定会弹确认的操作提示，宁可少报也不打扰你。',
+    en: '“Waiting” is inferred (marked with a hollow badge): it cannot tell “waiting for your approval” from “the tool is just slow”, so T1doo only flags operations that would actually prompt — it would rather miss one than interrupt you.'
+  },
 
   // ④ 后端档案 + 完成
   'onboarding.backend.title': { zh: '后端档案（可选）', en: 'Backend profiles (optional)' },

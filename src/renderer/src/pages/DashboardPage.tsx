@@ -20,6 +20,17 @@ function DashboardPage(): React.JSX.Element {
   const nav = useAppNav()
   const queryClient = useQueryClient()
   const [terms, setTerms] = useState<TerminalInfo[]>([])
+  // §7.9.4：v1.0 hooks 注册被自动清理后的一次性告知（落盘标记，隐藏启动也不会漏掉）
+  const [retireNotice, setRetireNotice] = useState(false)
+
+  useEffect(() => {
+    void window.t1doo.status.retireNotice().then(setRetireNotice)
+  }, [])
+
+  const dismissRetireNotice = (): void => {
+    setRetireNotice(false)
+    void window.t1doo.status.dismissRetireNotice()
+  }
 
   // 终端与状态：初始拉取 + 事件驱动刷新
   useEffect(() => {
@@ -105,6 +116,26 @@ function DashboardPage(): React.JSX.Element {
         </button>
       </div>
 
+      {/* hooks 退役的一次性告知（§7.9.4） */}
+      {retireNotice && (
+        <div
+          data-testid="hooks-retired-notice"
+          className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] p-4"
+        >
+          <h2 className="mb-1 font-medium">{t('dashboard.hooksRetired.title')}</h2>
+          <p className="mb-3 text-xs leading-relaxed text-[var(--fg-muted)]">
+            {t('dashboard.hooksRetired.desc')}
+          </p>
+          <button
+            type="button"
+            onClick={dismissRetireNotice}
+            className="rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--bg-hover)]"
+          >
+            {t('dashboard.hooksRetired.dismiss')}
+          </button>
+        </div>
+      )}
+
       {/* 等待确认的会话置顶提醒 */}
       {waiting.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-500/60 bg-amber-500/10 p-4">
@@ -145,7 +176,16 @@ function DashboardPage(): React.JSX.Element {
                   >
                     <span className="min-w-0 flex-1 truncate">{term.title}</span>
                     {term.kind === 'claude' && term.status ? (
-                      <span className={`shrink-0 text-xs ${STATUS_LABEL[term.status].cls}`}>
+                      <span
+                        className={`shrink-0 text-xs ${STATUS_LABEL[term.status].cls}`}
+                        title={
+                          term.status === 'waiting' && !term.statusCertain
+                            ? t('dashboard.status.inferredHint')
+                            : undefined
+                        }
+                      >
+                        {/* 空心圈＝推断值，与确定判定区分（§7.9.2） */}
+                        {term.status === 'waiting' && !term.statusCertain ? '○ ' : ''}
                         {t(STATUS_LABEL[term.status].labelKey)}
                       </span>
                     ) : (
